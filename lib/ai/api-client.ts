@@ -1,5 +1,5 @@
 import type { QuotaCheckResult } from "@/lib/billing/access";
-import { AI_CREDIT_COSTS } from "@/lib/billing/ai-credits";
+import { AI_CREDIT_COSTS } from "@/lib/billing/ai-credit-costs";
 import type { ProgramTree } from "@/lib/programs/types";
 
 export type AiCreditsResponse = {

@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { fetchAiCredits, type AiCreditsResponse } from "@/lib/ai/api-client";
-import { AI_CREDIT_COSTS } from "@/lib/billing/ai-credits";
+import { AI_CREDIT_COSTS } from "@/lib/billing/ai-credit-costs";
 
 type CoachAiChatPanelProps = {
   open: boolean;

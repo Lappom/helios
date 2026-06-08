@@ -5,14 +5,10 @@ import type { PlanTier } from "@/lib/auth/types";
 import { getDb } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import type { QuotaCheckResult } from "./access";
+import { AI_CREDIT_COSTS, type AiCreditAction } from "./ai-credit-costs";
 import { getPlanLimit } from "./plans";
 
-export const AI_CREDIT_COSTS = {
-  chat: 1,
-  generateProgram: 5,
-} as const;
-
-export type AiCreditAction = keyof typeof AI_CREDIT_COSTS;
+export { AI_CREDIT_COSTS, type AiCreditAction };
 
 export async function consumeAiCredits(
   organizationId: string,

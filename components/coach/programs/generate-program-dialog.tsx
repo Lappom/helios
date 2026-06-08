@@ -21,7 +21,7 @@ import {
   generateProgramRequest,
   type AiCreditsResponse,
 } from "@/lib/ai/api-client";
-import { AI_CREDIT_COSTS } from "@/lib/billing/ai-credits";
+import { AI_CREDIT_COSTS } from "@/lib/billing/ai-credit-costs";
 
 function GenerateSkeleton() {
   return (

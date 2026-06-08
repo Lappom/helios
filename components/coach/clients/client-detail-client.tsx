@@ -19,8 +19,8 @@ import {
   CLIENT_STATUS_LABELS,
   CLIENT_STATUS_ORDER,
 } from "@/lib/clients/constants";
-import type { ClientDetail, TimelineEntry } from "@/lib/clients/service";
-import { buildClientTimeline } from "@/lib/clients/service";
+import { buildClientTimeline } from "@/lib/clients/timeline";
+import type { ClientDetail, TimelineEntry } from "@/lib/clients/types";
 import type { ClientStatus } from "@/lib/validators/clients";
 
 type ClientDetailClientProps = {
