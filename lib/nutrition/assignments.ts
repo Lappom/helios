@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients, nutritionAssignments, nutritionPlans } from "@/lib/db/schema";
 import { problem } from "@/lib/api/response";
 import type { NutritionAssignmentItem, NutritionAssignmentWithPlan } from "@/lib/nutrition/types";
@@ -8,7 +8,7 @@ import type { AssignNutritionPlanInput } from "@/lib/validators/nutrition-plans"
 const ASSIGNABLE_STATUSES = ["ACTIVE", "TRIAL"] as const;
 
 async function getPlanOrThrow(organizationId: string, planId: string) {
-  const plan = await db.query.nutritionPlans.findFirst({
+  const plan = await getDb().query.nutritionPlans.findFirst({
     where: and(
       eq(nutritionPlans.organizationId, organizationId),
       eq(nutritionPlans.id, planId),
@@ -69,7 +69,7 @@ export async function listNutritionAssignments(
 ): Promise<NutritionAssignmentItem[]> {
   await getPlanOrThrow(organizationId, planId);
 
-  const rows = await db.query.nutritionAssignments.findMany({
+  const rows = await getDb().query.nutritionAssignments.findMany({
     where: and(
       eq(nutritionAssignments.organizationId, organizationId),
       eq(nutritionAssignments.planId, planId),
@@ -105,7 +105,7 @@ export async function assignNutritionPlan(
   }
 
   const uniqueClientIds = [...new Set(input.clientIds)];
-  const clientRows = await db.query.clients.findMany({
+  const clientRows = await getDb().query.clients.findMany({
     where: and(
       eq(clients.organizationId, organizationId),
       inArray(clients.id, uniqueClientIds),
@@ -116,7 +116,7 @@ export async function assignNutritionPlan(
   const created: NutritionAssignmentItem[] = [];
   const skipped: { clientId: string; reason: string }[] = [];
 
-  const activeAssignments = await db.query.nutritionAssignments.findMany({
+  const activeAssignments = await getDb().query.nutritionAssignments.findMany({
     where: and(
       eq(nutritionAssignments.organizationId, organizationId),
       eq(nutritionAssignments.status, "active"),
@@ -155,7 +155,7 @@ export async function assignNutritionPlan(
       continue;
     }
 
-    const [inserted] = await db
+    const [inserted] = await getDb()
       .insert(nutritionAssignments)
       .values({
         organizationId,
@@ -186,7 +186,7 @@ export async function getActiveClientNutrition(
   organizationId: string,
   clientId: string,
 ): Promise<NutritionAssignmentWithPlan | null> {
-  const assignment = await db.query.nutritionAssignments.findFirst({
+  const assignment = await getDb().query.nutritionAssignments.findFirst({
     where: and(
       eq(nutritionAssignments.organizationId, organizationId),
       eq(nutritionAssignments.clientId, clientId),

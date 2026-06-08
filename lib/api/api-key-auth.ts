@@ -3,7 +3,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
 import type { PlanTier } from "@/lib/auth/types";
-import { db } from "@/lib/db";
+import { getDb, runWithDbScope } from "@/lib/db";
 import { organizations } from "@/lib/db/schema";
 import { verifyApiKey } from "@/lib/integrations/api-keys";
 import { getPlanLimit } from "@/lib/billing/plans";
@@ -21,6 +21,10 @@ export function planHasApiAccess(planTier: PlanTier): boolean {
 }
 
 export async function requireApiKey(request: Request): Promise<ApiKeyContext> {
+  return runWithDbScope({ bypass: true }, () => resolveApiKey(request));
+}
+
+async function resolveApiKey(request: Request): Promise<ApiKeyContext> {
   const authorization = request.headers.get("authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
@@ -44,7 +48,7 @@ export async function requireApiKey(request: Request): Promise<ApiKeyContext> {
     });
   }
 
-  const organization = await db.query.organizations.findFirst({
+  const organization = await getDb().query.organizations.findFirst({
     where: eq(organizations.id, verified.organizationId),
     columns: {
       id: true,

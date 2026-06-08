@@ -14,7 +14,7 @@ import {
 import { problem } from "@/lib/api/response";
 import { checkQuota } from "@/lib/billing/access";
 import type { PlanTier } from "@/lib/auth/types";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   clients,
   notificationLogs,
@@ -72,7 +72,7 @@ export async function seedSystemNotificationTemplatesIfMissing(
   organizationId: string,
   coachClerkUserId: string,
 ): Promise<void> {
-  const existing = await db.query.notificationTemplates.findFirst({
+  const existing = await getDb().query.notificationTemplates.findFirst({
     where: and(
       eq(notificationTemplates.organizationId, organizationId),
       eq(notificationTemplates.isSystem, true),
@@ -84,7 +84,7 @@ export async function seedSystemNotificationTemplatesIfMissing(
     return;
   }
 
-  await db.insert(notificationTemplates).values(
+  await getDb().insert(notificationTemplates).values(
     SYSTEM_NOTIFICATION_TEMPLATES.map((template) => ({
       organizationId,
       name: template.name,
@@ -105,7 +105,7 @@ async function getTemplateOrThrow(
   organizationId: string,
   templateId: string,
 ) {
-  const template = await db.query.notificationTemplates.findFirst({
+  const template = await getDb().query.notificationTemplates.findFirst({
     where: and(
       eq(notificationTemplates.organizationId, organizationId),
       eq(notificationTemplates.id, templateId),
@@ -152,13 +152,13 @@ export async function listNotificationTemplates(
   const whereClause = and(...filters);
 
   const [rows, totalRow] = await Promise.all([
-    db.query.notificationTemplates.findMany({
+    getDb().query.notificationTemplates.findMany({
       where: whereClause,
       orderBy: [desc(notificationTemplates.updatedAt)],
       limit: options.limit,
       offset: options.offset,
     }),
-    db
+    getDb()
       .select({ total: count() })
       .from(notificationTemplates)
       .where(whereClause),
@@ -183,7 +183,7 @@ export async function createNotificationTemplate(
   coachClerkUserId: string,
   input: CreateNotificationTemplateInput,
 ): Promise<NotificationTemplateItem> {
-  const [created] = await db
+  const [created] = await getDb()
     .insert(notificationTemplates)
     .values({
       organizationId,
@@ -218,7 +218,7 @@ export async function updateNotificationTemplate(
     });
   }
 
-  const [updated] = await db
+  const [updated] = await getDb()
     .update(notificationTemplates)
     .set({
       name: input.name,
@@ -257,7 +257,7 @@ export async function deleteNotificationTemplate(
     });
   }
 
-  await db
+  await getDb()
     .delete(notificationTemplates)
     .where(
       and(
@@ -285,7 +285,7 @@ export async function sendManualNotification(
     templateId = template.id;
   }
 
-  const clientRows = await db.query.clients.findMany({
+  const clientRows = await getDb().query.clients.findMany({
     where: and(
       eq(clients.organizationId, organizationId),
       inArray(clients.id, input.clientIds),
@@ -351,7 +351,7 @@ export async function getNotificationAnalytics(
 
   const whereClause = and(...filters);
 
-  const rows = await db.query.notificationLogs.findMany({
+  const rows = await getDb().query.notificationLogs.findMany({
     where: whereClause,
     columns: {
       channel: true,
@@ -452,7 +452,7 @@ export async function registerPushSubscription(
   input: PushSubscriptionInput,
   userAgent?: string,
 ): Promise<void> {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -469,7 +469,7 @@ export async function registerPushSubscription(
     });
   }
 
-  await db
+  await getDb()
     .insert(pushSubscriptions)
     .values({
       organizationId,
@@ -496,7 +496,7 @@ export async function removePushSubscription(
   clientId: string,
   endpoint: string,
 ): Promise<void> {
-  await db
+  await getDb()
     .delete(pushSubscriptions)
     .where(
       and(
@@ -510,7 +510,7 @@ export async function removePushSubscription(
 async function ensureSystemTemplatesForOrganization(
   organizationId: string,
 ): Promise<void> {
-  const existing = await db.query.notificationTemplates.findFirst({
+  const existing = await getDb().query.notificationTemplates.findFirst({
     where: and(
       eq(notificationTemplates.organizationId, organizationId),
       eq(notificationTemplates.isSystem, true),
@@ -522,7 +522,7 @@ async function ensureSystemTemplatesForOrganization(
     return;
   }
 
-  const member = await db.query.teamMembers.findFirst({
+  const member = await getDb().query.teamMembers.findFirst({
     where: eq(teamMembers.organizationId, organizationId),
     columns: { clerkUserId: true },
     orderBy: [asc(teamMembers.createdAt)],
@@ -541,7 +541,7 @@ export async function getActiveEventTemplate(
 ) {
   await ensureSystemTemplatesForOrganization(organizationId);
 
-  const templates = await db.query.notificationTemplates.findMany({
+  const templates = await getDb().query.notificationTemplates.findMany({
     where: and(
       eq(notificationTemplates.organizationId, organizationId),
       eq(notificationTemplates.trigger, "event"),
@@ -576,7 +576,7 @@ export async function handleResendWebhookEvent(payload: {
     return;
   }
 
-  const log = await db.query.notificationLogs.findFirst({
+  const log = await getDb().query.notificationLogs.findFirst({
     where: and(
       eq(notificationLogs.externalId, emailId),
       isNotNull(notificationLogs.externalId),
@@ -592,7 +592,7 @@ export async function handleResendWebhookEvent(payload: {
     : new Date();
 
   if (payload.type === "email.opened") {
-    await db
+    await getDb()
       .update(notificationLogs)
       .set({
         status: "opened",
@@ -603,7 +603,7 @@ export async function handleResendWebhookEvent(payload: {
   }
 
   if (payload.type === "email.clicked") {
-    await db
+    await getDb()
       .update(notificationLogs)
       .set({
         status: "clicked",

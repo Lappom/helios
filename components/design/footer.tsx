@@ -37,7 +37,13 @@ export function Footer({ className }: FooterProps) {
                 {column.links.map((link) => (
                   <li key={link}>
                     <Link
-                      href={link === "Tarifs" ? "/tarifs" : "#"}
+                      href={
+                        link === "Tarifs"
+                          ? "/tarifs"
+                          : link === "Confidentialité"
+                            ? "/confidentialite"
+                            : "#"
+                      }
                       className="text-body-sm text-muted hover:text-body"
                     >
                       {link}

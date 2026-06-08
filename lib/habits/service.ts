@@ -11,7 +11,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   clients,
   habitAssignments,
@@ -73,7 +73,7 @@ async function resolveSeedCoachClerkUserId(
   organizationId: string,
   fallbackClerkUserId: string,
 ): Promise<string> {
-  const member = await db.query.teamMembers.findFirst({
+  const member = await getDb().query.teamMembers.findFirst({
     where: eq(teamMembers.organizationId, organizationId),
     columns: { clerkUserId: true },
     orderBy: [asc(teamMembers.createdAt)],
@@ -86,7 +86,7 @@ export async function seedPredefinedHabitsIfMissing(
   organizationId: string,
   coachClerkUserId: string,
 ): Promise<void> {
-  const existing = await db.query.habits.findFirst({
+  const existing = await getDb().query.habits.findFirst({
     where: and(
       eq(habits.organizationId, organizationId),
       eq(habits.isPredefined, true),
@@ -103,7 +103,7 @@ export async function seedPredefinedHabitsIfMissing(
     coachClerkUserId,
   );
 
-  await db.insert(habits).values(
+  await getDb().insert(habits).values(
     PREDEFINED_HABITS.map((habit) => ({
       organizationId,
       coachClerkUserId: seedCoachId,
@@ -117,7 +117,7 @@ export async function seedPredefinedHabitsIfMissing(
 }
 
 async function getHabitOrThrow(organizationId: string, habitId: string) {
-  const habit = await db.query.habits.findFirst({
+  const habit = await getDb().query.habits.findFirst({
     where: and(
       eq(habits.organizationId, organizationId),
       eq(habits.id, habitId),
@@ -137,7 +137,7 @@ async function getHabitOrThrow(organizationId: string, habitId: string) {
 }
 
 async function getClientOrThrow(organizationId: string, clientId: string) {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -173,14 +173,14 @@ export async function listHabits(
   const where = and(...filters);
 
   const [rows, totalRow, assignmentCounts] = await Promise.all([
-    db.query.habits.findMany({
+    getDb().query.habits.findMany({
       where,
       orderBy: [desc(habits.isPredefined), asc(habits.name)],
       limit: options.limit,
       offset: options.offset,
     }),
-    db.select({ total: count() }).from(habits).where(where),
-    db
+    getDb().select({ total: count() }).from(habits).where(where),
+    getDb()
       .select({
         habitId: habitAssignments.habitId,
         total: count(),
@@ -212,7 +212,7 @@ export async function createHabit(
   coachClerkUserId: string,
   input: CreateHabitInput,
 ): Promise<HabitListItem> {
-  const [row] = await db
+  const [row] = await getDb()
     .insert(habits)
     .values({
       organizationId,
@@ -239,7 +239,7 @@ export async function assignHabit(
 
   const startDate = input.startDate ?? utcToday();
 
-  const [assignment] = await db
+  const [assignment] = await getDb()
     .insert(habitAssignments)
     .values({
       organizationId,
@@ -271,7 +271,7 @@ export async function listClientHabits(
 ): Promise<ClientHabitAssignment[]> {
   const today = utcToday();
 
-  const assignments = await db.query.habitAssignments.findMany({
+  const assignments = await getDb().query.habitAssignments.findMany({
     where: and(
       eq(habitAssignments.organizationId, organizationId),
       eq(habitAssignments.clientId, clientId),
@@ -324,7 +324,7 @@ export async function logHabitCompletion(
 ): Promise<HabitLogResult> {
   const logDate = input.logDate ?? utcToday();
 
-  const assignment = await db.query.habitAssignments.findFirst({
+  const assignment = await getDb().query.habitAssignments.findFirst({
     where: and(
       eq(habitAssignments.organizationId, organizationId),
       eq(habitAssignments.id, input.assignmentId),
@@ -342,7 +342,7 @@ export async function logHabitCompletion(
     });
   }
 
-  const existing = await db.query.habitLogs.findFirst({
+  const existing = await getDb().query.habitLogs.findFirst({
     where: and(
       eq(habitLogs.organizationId, organizationId),
       eq(habitLogs.assignmentId, input.assignmentId),
@@ -351,7 +351,7 @@ export async function logHabitCompletion(
   });
 
   if (existing) {
-    const [updated] = await db
+    const [updated] = await getDb()
       .update(habitLogs)
       .set({
         completed: input.completed,
@@ -369,7 +369,7 @@ export async function logHabitCompletion(
     };
   }
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(habitLogs)
     .values({
       organizationId,
@@ -399,7 +399,7 @@ export async function getClientHabitStats(
 
   const { start, end } = resolveStatsWindow(input);
 
-  const assignments = await db.query.habitAssignments.findMany({
+  const assignments = await getDb().query.habitAssignments.findMany({
     where: and(
       eq(habitAssignments.organizationId, organizationId),
       eq(habitAssignments.clientId, clientId),
@@ -493,7 +493,7 @@ export async function getOrgWeeklyHabitSummary(
   const end = utcToday();
   const start = addDaysToDate(end, -29);
 
-  const assignments = await db.query.habitAssignments.findMany({
+  const assignments = await getDb().query.habitAssignments.findMany({
     where: and(
       eq(habitAssignments.organizationId, organizationId),
       eq(habitAssignments.status, "active"),
@@ -562,7 +562,7 @@ export async function listClientActiveHabitAssignments(
 ) {
   await getClientOrThrow(organizationId, clientId);
 
-  const assignments = await db.query.habitAssignments.findMany({
+  const assignments = await getDb().query.habitAssignments.findMany({
     where: and(
       eq(habitAssignments.organizationId, organizationId),
       eq(habitAssignments.clientId, clientId),

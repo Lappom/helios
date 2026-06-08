@@ -1,5 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   programMacrocycles,
   programMesocycles,
@@ -17,7 +17,7 @@ export async function getProgramAnalytics(
   clientId: string,
   options?: { groupBy?: "mesocycle" },
 ): Promise<ProgramAnalytics> {
-  const completedLogs = await db.query.sessionLogs.findMany({
+  const completedLogs = await getDb().query.sessionLogs.findMany({
     where: and(
       eq(sessionLogs.organizationId, organizationId),
       eq(sessionLogs.clientId, clientId),
@@ -98,7 +98,7 @@ export async function getProgramAnalytics(
   };
 
   if (options?.groupBy === "mesocycle") {
-    const sessions = await db
+    const sessions = await getDb()
       .select({
         sessionId: programSessions.id,
         mesocycleId: programMesocycles.id,

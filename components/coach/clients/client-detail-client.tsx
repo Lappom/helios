@@ -10,6 +10,7 @@ import { FeatureGate } from "@/components/billing/feature-gate";
 import { ClientFeedbackCard } from "@/components/coach/session-feedback/client-feedback-card";
 import { ClientActiveNutritionCard } from "@/components/coach/clients/client-active-nutrition-card";
 import { ClientActiveProgramCard } from "@/components/coach/clients/client-active-program-card";
+import { ClientPrivacyActions } from "@/components/coach/clients/client-privacy-actions";
 import { ClientStatusBadge } from "@/components/coach/clients/client-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -238,6 +239,11 @@ export function ClientDetailClient({ initialClient }: ClientDetailClientProps) {
               {loadingTags ? "Enregistrement…" : "Enregistrer les tags"}
             </Button>
           </section>
+
+          <ClientPrivacyActions
+            clientId={client.id}
+            clientEmail={client.email}
+          />
         </aside>
 
         <section className="border-hairline bg-surface-card space-y-6 rounded-lg border p-5">

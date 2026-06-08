@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { endOfDay, startOfDay, subDays } from "date-fns";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { assessments, clients } from "@/lib/db/schema";
 import { getOrganizationPlanTier } from "@/lib/notifications/cron";
 import { dispatchNotification } from "@/lib/notifications/dispatch";
@@ -14,7 +14,7 @@ export async function processAssessmentReminders(
   const yesterdayStart = startOfDay(subDays(now, 1));
   const yesterdayEnd = endOfDay(subDays(now, 1));
 
-  const pendingAssessments = await db.query.assessments.findMany({
+  const pendingAssessments = await getDb().query.assessments.findMany({
     where: and(
       eq(assessments.status, "pending"),
       inArray(assessments.source, ["manual", "cron"]),
@@ -56,7 +56,7 @@ export async function processAssessmentReminders(
       continue;
     }
 
-    const client = await db.query.clients.findFirst({
+    const client = await getDb().query.clients.findFirst({
       where: and(
         eq(clients.organizationId, assessment.organizationId),
         eq(clients.id, assessment.clientId),

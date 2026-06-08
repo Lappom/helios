@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { coachingPathways } from "@/lib/db/schema";
 import type { ClientCreatedPayload } from "@/lib/events/types";
 import {
@@ -10,7 +10,7 @@ import {
 export async function handlePathwayClientCreated(
   payload: ClientCreatedPayload,
 ): Promise<void> {
-  const pathway = await db.query.coachingPathways.findFirst({
+  const pathway = await getDb().query.coachingPathways.findFirst({
     where: and(
       eq(coachingPathways.organizationId, payload.organizationId),
       eq(coachingPathways.isActive, true),

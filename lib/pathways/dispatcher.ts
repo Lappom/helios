@@ -1,7 +1,7 @@
 import "server-only";
 
 import { and, asc, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   coachingPathways,
   organizations,
@@ -39,7 +39,7 @@ export async function dispatchPathwayEnrollment(
   clientId: string,
   triggerEventId: string,
 ): Promise<{ started: boolean; skipped: boolean }> {
-  const pathway = await db.query.coachingPathways.findFirst({
+  const pathway = await getDb().query.coachingPathways.findFirst({
     where: and(
       eq(coachingPathways.organizationId, organizationId),
       eq(coachingPathways.id, pathwayId),
@@ -53,7 +53,7 @@ export async function dispatchPathwayEnrollment(
   }
 
   try {
-    const [enrollment] = await db
+    const [enrollment] = await getDb()
       .insert(pathwayEnrollments)
       .values({
         organizationId,
@@ -64,7 +64,7 @@ export async function dispatchPathwayEnrollment(
       })
       .returning();
 
-    const stepRows = await db.query.pathwaySteps.findMany({
+    const stepRows = await getDb().query.pathwaySteps.findMany({
       where: and(
         eq(pathwaySteps.organizationId, organizationId),
         eq(pathwaySteps.pathwayId, pathwayId),
@@ -73,7 +73,7 @@ export async function dispatchPathwayEnrollment(
     });
 
     if (stepRows.length === 0) {
-      await db
+      await getDb()
         .update(pathwayEnrollments)
         .set({
           status: "completed",
@@ -83,7 +83,7 @@ export async function dispatchPathwayEnrollment(
       return { started: true, skipped: false };
     }
 
-    const org = await db.query.organizations.findFirst({
+    const org = await getDb().query.organizations.findFirst({
       where: eq(organizations.id, organizationId),
       columns: { planTier: true },
     });

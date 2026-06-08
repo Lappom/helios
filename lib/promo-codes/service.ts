@@ -1,6 +1,6 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { promoCodes } from "@/lib/db/schema";
 import type {
   CreatePromoCodeInput,
@@ -96,7 +96,7 @@ function assertPromoApplicable(
 export async function listPromoCodes(
   organizationId: string,
 ): Promise<PromoCodeDto[]> {
-  const rows = await db.query.promoCodes.findMany({
+  const rows = await getDb().query.promoCodes.findMany({
     where: eq(promoCodes.organizationId, organizationId),
     orderBy: [asc(promoCodes.code)],
   });
@@ -111,7 +111,7 @@ export async function createPromoCode(
   const code = normalizePromoCode(input.code);
 
   try {
-    const [created] = await db
+    const [created] = await getDb()
       .insert(promoCodes)
       .values({
         organizationId,
@@ -151,7 +151,7 @@ export async function patchPromoCode(
     input.code !== undefined ? normalizePromoCode(input.code) : existing.code;
 
   try {
-    const [updated] = await db
+    const [updated] = await getDb()
       .update(promoCodes)
       .set({
         ...(input.code !== undefined ? { code: nextCode } : {}),
@@ -203,7 +203,7 @@ export async function deletePromoCode(
 ): Promise<void> {
   await getPromoCodeOrThrow(organizationId, promoCodeId);
 
-  await db
+  await getDb()
     .delete(promoCodes)
     .where(
       and(
@@ -217,7 +217,7 @@ async function getPromoCodeOrThrow(
   organizationId: string,
   promoCodeId: string,
 ) {
-  const promo = await db.query.promoCodes.findFirst({
+  const promo = await getDb().query.promoCodes.findFirst({
     where: and(
       eq(promoCodes.id, promoCodeId),
       eq(promoCodes.organizationId, organizationId),
@@ -244,7 +244,7 @@ export async function validatePromoCode(
 ): Promise<PromoValidationResult> {
   const normalized = normalizePromoCode(code);
 
-  const promo = await db.query.promoCodes.findFirst({
+  const promo = await getDb().query.promoCodes.findFirst({
     where: and(
       eq(promoCodes.organizationId, organizationId),
       eq(promoCodes.code, normalized),
@@ -291,7 +291,7 @@ export async function incrementPromoRedemption(
   organizationId: string,
   promoCodeId: string,
 ): Promise<void> {
-  await db
+  await getDb()
     .update(promoCodes)
     .set({
       redemptionCount: sql`${promoCodes.redemptionCount} + 1`,

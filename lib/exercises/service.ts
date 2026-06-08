@@ -8,7 +8,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   exerciseAliases,
   exerciseCategories,
@@ -153,7 +153,7 @@ function buildListWhere(
 async function loadHiddenExerciseIds(
   organizationId: string,
 ): Promise<string[]> {
-  const rows = await db
+  const rows = await getDb()
     .select({ exerciseId: exerciseHidden.exerciseId })
     .from(exerciseHidden)
     .where(eq(exerciseHidden.organizationId, organizationId));
@@ -174,12 +174,12 @@ export async function listExercises(
     hiddenExerciseIds,
   );
 
-  const [totalRow] = await db
+  const [totalRow] = await getDb()
     .select({ total: count() })
     .from(exercises)
     .where(where);
 
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: exercises.id,
       name: exercises.name,
@@ -247,7 +247,7 @@ export async function getExerciseById(
     });
   }
 
-  const [row] = await db
+  const [row] = await getDb()
     .select({
       id: exercises.id,
       name: exercises.name,
@@ -306,7 +306,7 @@ async function assertCustomExercise(
   organizationId: string,
   exerciseId: string,
 ) {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ id: exercises.id })
     .from(exercises)
     .where(
@@ -332,7 +332,7 @@ async function assertAccessibleExercise(
   organizationId: string,
   exerciseId: string,
 ) {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ id: exercises.id, source: exercises.source })
     .from(exercises)
     .where(
@@ -357,7 +357,7 @@ export async function createCustomExercise(
   input: CreateExerciseInput,
 ): Promise<ExerciseListItem> {
   if (input.categoryId) {
-    const [category] = await db
+    const [category] = await getDb()
       .select({ id: exerciseCategories.id })
       .from(exerciseCategories)
       .where(
@@ -378,7 +378,7 @@ export async function createCustomExercise(
     }
   }
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(exercises)
     .values({
       organizationId,
@@ -411,7 +411,7 @@ export async function updateCustomExercise(
 ): Promise<ExerciseListItem> {
   await assertCustomExercise(organizationId, exerciseId);
 
-  const [existing] = await db
+  const [existing] = await getDb()
     .select({
       name: exercises.name,
       muscleGroups: exercises.muscleGroups,
@@ -425,7 +425,7 @@ export async function updateCustomExercise(
   const nextMuscleGroups = input.muscleGroups ?? existing!.muscleGroups;
   const nextEquipment = input.equipment ?? existing!.equipment;
 
-  await db
+  await getDb()
     .update(exercises)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
@@ -463,7 +463,7 @@ export async function deleteCustomExercise(
 ): Promise<void> {
   await assertCustomExercise(organizationId, exerciseId);
 
-  const deleted = await db
+  const deleted = await getDb()
     .delete(exercises)
     .where(
       and(
@@ -490,7 +490,7 @@ export async function toggleFavorite(
 ): Promise<{ isFavorite: boolean }> {
   await assertAccessibleExercise(organizationId, exerciseId);
 
-  const [existing] = await db
+  const [existing] = await getDb()
     .select({ id: exerciseFavorites.id })
     .from(exerciseFavorites)
     .where(
@@ -503,13 +503,13 @@ export async function toggleFavorite(
     .limit(1);
 
   if (existing) {
-    await db
+    await getDb()
       .delete(exerciseFavorites)
       .where(eq(exerciseFavorites.id, existing.id));
     return { isFavorite: false };
   }
 
-  await db.insert(exerciseFavorites).values({
+  await getDb().insert(exerciseFavorites).values({
     organizationId,
     clerkUserId,
     exerciseId,
@@ -534,7 +534,7 @@ export async function setExerciseAlias(
     });
   }
 
-  await db
+  await getDb()
     .insert(exerciseAliases)
     .values({
       organizationId,
@@ -566,14 +566,14 @@ export async function setExerciseHidden(
   }
 
   if (hidden) {
-    await db
+    await getDb()
       .insert(exerciseHidden)
       .values({ organizationId, exerciseId })
       .onConflictDoNothing();
     return { hidden: true };
   }
 
-  await db
+  await getDb()
     .delete(exerciseHidden)
     .where(
       and(
@@ -588,7 +588,7 @@ export async function setExerciseHidden(
 export async function listCategories(
   organizationId: string,
 ): Promise<ExerciseCategoryItem[]> {
-  return db
+  return getDb()
     .select({
       id: exerciseCategories.id,
       name: exerciseCategories.name,
@@ -604,7 +604,7 @@ export async function createCategory(
   input: CreateCategoryInput,
 ): Promise<ExerciseCategoryItem> {
   try {
-    const [created] = await db
+    const [created] = await getDb()
       .insert(exerciseCategories)
       .values({
         organizationId,
@@ -644,7 +644,7 @@ export async function seedSystemExercise(input: {
   type: ExerciseListItem["type"];
   media?: ExerciseMedia;
 }) {
-  const [existing] = await db
+  const [existing] = await getDb()
     .select({ id: exercises.id })
     .from(exercises)
     .where(and(eq(exercises.slug, input.slug), eq(exercises.source, "system")))
@@ -654,7 +654,7 @@ export async function seedSystemExercise(input: {
     return existing.id;
   }
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(exercises)
     .values({
       organizationId: null,

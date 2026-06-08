@@ -9,7 +9,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   blockExerciseAlternatives,
   blockExercises,
@@ -66,14 +66,14 @@ async function getNextWeekSortOrder(
   microcycleId?: string | null,
 ) {
   if (microcycleId) {
-    const [row] = await db
+    const [row] = await getDb()
       .select({ max: sql<number>`coalesce(max(${programWeeks.sortOrder}), -1)` })
       .from(programWeeks)
       .where(eq(programWeeks.microcycleId, microcycleId));
     return (row?.max ?? -1) + 1;
   }
 
-  const [row] = await db
+  const [row] = await getDb()
     .select({ max: sql<number>`coalesce(max(${programWeeks.sortOrder}), -1)` })
     .from(programWeeks)
     .where(and(eq(programWeeks.programId, programId), isNull(programWeeks.microcycleId)));
@@ -81,7 +81,7 @@ async function getNextWeekSortOrder(
 }
 
 async function getNextSessionSortOrder(weekId: string) {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ max: sql<number>`coalesce(max(${programSessions.sortOrder}), -1)` })
     .from(programSessions)
     .where(eq(programSessions.programWeekId, weekId));
@@ -89,7 +89,7 @@ async function getNextSessionSortOrder(weekId: string) {
 }
 
 async function getNextBlockSortOrder(sessionId: string) {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ max: sql<number>`coalesce(max(${exerciseBlocks.sortOrder}), -1)` })
     .from(exerciseBlocks)
     .where(eq(exerciseBlocks.programSessionId, sessionId));
@@ -97,7 +97,7 @@ async function getNextBlockSortOrder(sessionId: string) {
 }
 
 async function getNextBlockExerciseSortOrder(blockId: string) {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ max: sql<number>`coalesce(max(${blockExercises.sortOrder}), -1)` })
     .from(blockExercises)
     .where(eq(blockExercises.exerciseBlockId, blockId));
@@ -121,7 +121,7 @@ export async function listPrograms(
   const where = and(...conditions);
 
   const [rows, [totalRow]] = await Promise.all([
-    db
+    getDb()
       .select({
         id: programs.id,
         name: programs.name,
@@ -147,7 +147,7 @@ export async function listPrograms(
       .orderBy(desc(programs.updatedAt))
       .limit(options.limit)
       .offset(options.offset),
-    db.select({ total: count() }).from(programs).where(where),
+    getDb().select({ total: count() }).from(programs).where(where),
   ]);
 
   return {
@@ -161,7 +161,7 @@ export async function createProgram(
   coachClerkUserId: string,
   input: CreateProgramInput,
 ): Promise<ProgramTree> {
-  const programId = await db.transaction(async (tx) => {
+  const programId = await getDb().transaction(async (tx) => {
     const [program] = await tx
       .insert(programs)
       .values({
@@ -234,7 +234,7 @@ export async function patchProgramMetadata(
 ): Promise<ProgramTree> {
   await getProgramRowOrThrow(organizationId, programId);
 
-  await db
+  await getDb()
     .update(programs)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
@@ -268,7 +268,7 @@ export async function publishProgram(
     });
   }
 
-  await db
+  await getDb()
     .update(programs)
     .set({ status: "published", publishedAt: new Date() })
     .where(
@@ -296,7 +296,7 @@ export async function unpublishProgram(
     });
   }
 
-  await db
+  await getDb()
     .update(programs)
     .set({ status: "draft", publishedAt: null })
     .where(
@@ -327,7 +327,7 @@ export async function duplicateProgram(
 
   const programSource = source;
 
-  const newProgramId = await db.transaction(async (tx) => {
+  const newProgramId = await getDb().transaction(async (tx) => {
     const [newProgram] = await tx
       .insert(programs)
       .values({
@@ -497,7 +497,7 @@ async function reorderByIds(
   parentFilter: ReturnType<typeof eq>,
   ids: string[],
 ) {
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     for (let index = 0; index < ids.length; index++) {
       await tx
         .update(table)
@@ -524,7 +524,7 @@ export async function createWeek(
   const sortOrder = await getNextWeekSortOrder(programId, input.microcycleId);
 
   if (input.microcycleId) {
-    const microcycle = await db.query.programMicrocycles.findFirst({
+    const microcycle = await getDb().query.programMicrocycles.findFirst({
       where: and(
         eq(programMicrocycles.organizationId, organizationId),
         eq(programMicrocycles.id, input.microcycleId),
@@ -541,7 +541,7 @@ export async function createWeek(
     }
   }
 
-  await db.insert(programWeeks).values({
+  await getDb().insert(programWeeks).values({
     organizationId,
     programId,
     microcycleId: input.microcycleId ?? null,
@@ -561,7 +561,7 @@ export async function patchWeek(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const week = await db.query.programWeeks.findFirst({
+  const week = await getDb().query.programWeeks.findFirst({
     where: and(
       eq(programWeeks.organizationId, organizationId),
       eq(programWeeks.programId, programId),
@@ -592,7 +592,7 @@ export async function patchWeek(
   if (label !== undefined) patch.label = label;
 
   if (Object.keys(patch).length > 0) {
-    await db.update(programWeeks).set(patch).where(eq(programWeeks.id, weekId));
+    await getDb().update(programWeeks).set(patch).where(eq(programWeeks.id, weekId));
   }
 
   return getProgramTree(organizationId, programId);
@@ -606,7 +606,7 @@ export async function deleteWeek(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const weeks = await db.query.programWeeks.findMany({
+  const weeks = await getDb().query.programWeeks.findMany({
     where: and(
       eq(programWeeks.organizationId, organizationId),
       eq(programWeeks.programId, programId),
@@ -622,7 +622,7 @@ export async function deleteWeek(
     });
   }
 
-  const deleted = await db
+  const deleted = await getDb()
     .delete(programWeeks)
     .where(
       and(
@@ -671,7 +671,7 @@ export async function createSession(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const week = await db.query.programWeeks.findFirst({
+  const week = await getDb().query.programWeeks.findFirst({
     where: and(
       eq(programWeeks.organizationId, organizationId),
       eq(programWeeks.programId, programId),
@@ -689,7 +689,7 @@ export async function createSession(
 
   const sortOrder = await getNextSessionSortOrder(weekId);
 
-  await db.insert(programSessions).values({
+  await getDb().insert(programSessions).values({
     organizationId,
     programWeekId: weekId,
     sortOrder,
@@ -709,7 +709,7 @@ export async function patchSession(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const session = await db.query.programSessions.findFirst({
+  const session = await getDb().query.programSessions.findFirst({
     where: and(
       eq(programSessions.organizationId, organizationId),
       eq(programSessions.id, sessionId),
@@ -725,7 +725,7 @@ export async function patchSession(
     });
   }
 
-  await db
+  await getDb()
     .update(programSessions)
     .set(input)
     .where(eq(programSessions.id, sessionId));
@@ -741,7 +741,7 @@ export async function deleteSession(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const session = await db.query.programSessions.findFirst({
+  const session = await getDb().query.programSessions.findFirst({
     where: and(
       eq(programSessions.organizationId, organizationId),
       eq(programSessions.id, sessionId),
@@ -757,7 +757,7 @@ export async function deleteSession(
     });
   }
 
-  const siblingCount = await db
+  const siblingCount = await getDb()
     .select({ total: count() })
     .from(programSessions)
     .where(eq(programSessions.programWeekId, session.programWeekId));
@@ -771,7 +771,7 @@ export async function deleteSession(
     });
   }
 
-  await db.delete(programSessions).where(eq(programSessions.id, sessionId));
+  await getDb().delete(programSessions).where(eq(programSessions.id, sessionId));
 
   return getProgramTree(organizationId, programId);
 }
@@ -799,7 +799,7 @@ async function assertExerciseAccessible(
   organizationId: string,
   exerciseId: string,
 ) {
-  const exercise = await db.query.exercises.findFirst({
+  const exercise = await getDb().query.exercises.findFirst({
     where: and(
       eq(exercises.id, exerciseId),
       or(
@@ -830,7 +830,7 @@ export async function createBlock(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const session = await db.query.programSessions.findFirst({
+  const session = await getDb().query.programSessions.findFirst({
     where: and(
       eq(programSessions.organizationId, organizationId),
       eq(programSessions.id, sessionId),
@@ -852,7 +852,7 @@ export async function createBlock(
 
   const sortOrder = await getNextBlockSortOrder(sessionId);
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     const [block] = await tx
       .insert(exerciseBlocks)
       .values({
@@ -902,7 +902,7 @@ export async function patchBlock(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const block = await db.query.exerciseBlocks.findFirst({
+  const block = await getDb().query.exerciseBlocks.findFirst({
     where: and(
       eq(exerciseBlocks.organizationId, organizationId),
       eq(exerciseBlocks.id, blockId),
@@ -933,7 +933,7 @@ export async function patchBlock(
     }
   }
 
-  await db
+  await getDb()
     .update(exerciseBlocks)
     .set(input)
     .where(eq(exerciseBlocks.id, blockId));
@@ -949,7 +949,7 @@ export async function deleteBlock(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const block = await db.query.exerciseBlocks.findFirst({
+  const block = await getDb().query.exerciseBlocks.findFirst({
     where: and(
       eq(exerciseBlocks.organizationId, organizationId),
       eq(exerciseBlocks.id, blockId),
@@ -965,7 +965,7 @@ export async function deleteBlock(
     });
   }
 
-  await db.delete(exerciseBlocks).where(eq(exerciseBlocks.id, blockId));
+  await getDb().delete(exerciseBlocks).where(eq(exerciseBlocks.id, blockId));
 
   return getProgramTree(organizationId, programId);
 }
@@ -999,7 +999,7 @@ export async function addBlockExercise(
   assertProgramStructureEditable(program);
   await assertExerciseAccessible(organizationId, exerciseId);
 
-  const block = await db.query.exerciseBlocks.findFirst({
+  const block = await getDb().query.exerciseBlocks.findFirst({
     where: and(
       eq(exerciseBlocks.organizationId, organizationId),
       eq(exerciseBlocks.id, blockId),
@@ -1030,7 +1030,7 @@ export async function addBlockExercise(
 
   const sortOrder = await getNextBlockExerciseSortOrder(blockId);
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     const [blockExercise] = await tx
       .insert(blockExercises)
       .values({
@@ -1060,7 +1060,7 @@ export async function deleteBlockExercise(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const blockExercise = await db.query.blockExercises.findFirst({
+  const blockExercise = await getDb().query.blockExercises.findFirst({
     where: and(
       eq(blockExercises.organizationId, organizationId),
       eq(blockExercises.id, blockExerciseId),
@@ -1087,11 +1087,11 @@ export async function deleteBlockExercise(
   }
 
   if (blockExercise.block.exercises.length <= 1) {
-    await db
+    await getDb()
       .delete(exerciseBlocks)
       .where(eq(exerciseBlocks.id, blockExercise.block.id));
   } else {
-    await db
+    await getDb()
       .delete(blockExercises)
       .where(eq(blockExercises.id, blockExerciseId));
   }
@@ -1108,7 +1108,7 @@ export async function patchBlockExercise(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const blockExercise = await db.query.blockExercises.findFirst({
+  const blockExercise = await getDb().query.blockExercises.findFirst({
     where: and(
       eq(blockExercises.organizationId, organizationId),
       eq(blockExercises.id, blockExerciseId),
@@ -1127,7 +1127,7 @@ export async function patchBlockExercise(
     });
   }
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     if (input.notes !== undefined) {
       await tx
         .update(blockExercises)

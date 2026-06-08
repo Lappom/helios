@@ -13,7 +13,7 @@ import {
   checkDriveStorageQuota,
   getDriveStorageUsed,
 } from "@/lib/billing/drive-quota";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { createId } from "@/lib/db/id";
 import {
   clients,
@@ -40,7 +40,7 @@ import type { CreateFolderInput, ShareDriveInput } from "@/lib/validators/drive"
 import { del } from "@vercel/blob";
 
 async function getFolderOrThrow(organizationId: string, folderId: string) {
-  const folder = await db.query.driveFolders.findFirst({
+  const folder = await getDb().query.driveFolders.findFirst({
     where: and(
       eq(driveFolders.id, folderId),
       eq(driveFolders.organizationId, organizationId),
@@ -60,7 +60,7 @@ async function getFolderOrThrow(organizationId: string, folderId: string) {
 }
 
 async function getFileOrThrow(organizationId: string, fileId: string) {
-  const file = await db.query.driveFiles.findFirst({
+  const file = await getDb().query.driveFiles.findFirst({
     where: and(
       eq(driveFiles.id, fileId),
       eq(driveFiles.organizationId, organizationId),
@@ -80,7 +80,7 @@ async function getFileOrThrow(organizationId: string, fileId: string) {
 }
 
 async function getClientOrThrow(organizationId: string, clientId: string) {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.id, clientId),
       eq(clients.organizationId, organizationId),
@@ -115,7 +115,7 @@ async function countFolderFiles(
           eq(driveFiles.folderId, folderId),
         );
 
-  const [row] = await db.select({ total: count() }).from(driveFiles).where(where);
+  const [row] = await getDb().select({ total: count() }).from(driveFiles).where(where);
   return row?.total ?? 0;
 }
 
@@ -134,7 +134,7 @@ async function countChildFolders(
           eq(driveFolders.parentId, parentId),
         );
 
-  const [row] = await db
+  const [row] = await getDb()
     .select({ total: count() })
     .from(driveFolders)
     .where(where);
@@ -165,7 +165,7 @@ async function mapFileItem(
   organizationId: string,
   file: typeof driveFiles.$inferSelect,
 ): Promise<DriveFileItem> {
-  const [shareRow] = await db
+  const [shareRow] = await getDb()
     .select({ total: count() })
     .from(driveShares)
     .where(
@@ -208,7 +208,7 @@ export async function getDriveStorageQuota(
 export async function getFolderTree(
   organizationId: string,
 ): Promise<DriveFolderTreeNode[]> {
-  const folders = await db.query.driveFolders.findMany({
+  const folders = await getDb().query.driveFolders.findMany({
     where: eq(driveFolders.organizationId, organizationId),
     orderBy: [asc(driveFolders.name)],
   });
@@ -269,19 +269,19 @@ export async function listFolderContents(
         );
 
   const [childFolders, fileRows, [totalRow], folderRow] = await Promise.all([
-    db.query.driveFolders.findMany({
+    getDb().query.driveFolders.findMany({
       where: folderWhere,
       orderBy: [asc(driveFolders.name)],
     }),
-    db.query.driveFiles.findMany({
+    getDb().query.driveFiles.findMany({
       where: fileWhere,
       orderBy: [desc(driveFiles.createdAt)],
       limit: options.limit,
       offset: options.offset,
     }),
-    db.select({ total: count() }).from(driveFiles).where(fileWhere),
+    getDb().select({ total: count() }).from(driveFiles).where(fileWhere),
     parentId
-      ? db.query.driveFolders.findFirst({
+      ? getDb().query.driveFolders.findFirst({
           where: and(
             eq(driveFolders.id, parentId),
             eq(driveFolders.organizationId, organizationId),
@@ -316,7 +316,7 @@ export async function createFolder(
     await getFolderOrThrow(organizationId, input.parentId);
   }
 
-  const [folder] = await db
+  const [folder] = await getDb()
     .insert(driveFolders)
     .values({
       organizationId,
@@ -346,7 +346,7 @@ export async function uploadDriveFile(
   const fileId = createId();
   const uploaded = await putDriveFile(file, { organizationId, fileId });
 
-  const [row] = await db
+  const [row] = await getDb()
     .insert(driveFiles)
     .values({
       id: fileId,
@@ -371,7 +371,7 @@ async function getDescendantFolderIds(
     return [];
   }
 
-  const allFolders = await db.query.driveFolders.findMany({
+  const allFolders = await getDb().query.driveFolders.findMany({
     where: eq(driveFolders.organizationId, organizationId),
     columns: { id: true, parentId: true },
   });
@@ -411,7 +411,7 @@ async function buildFolderPath(
     return [];
   }
 
-  const allFolders = await db.query.driveFolders.findMany({
+  const allFolders = await getDb().query.driveFolders.findMany({
     where: eq(driveFolders.organizationId, organizationId),
     columns: { id: true, parentId: true, name: true },
   });
@@ -441,7 +441,7 @@ export async function shareDriveFile(
   await getFileOrThrow(organizationId, fileId);
   const client = await getClientOrThrow(organizationId, input.clientId);
 
-  const existing = await db.query.driveShares.findFirst({
+  const existing = await getDb().query.driveShares.findFirst({
     where: and(
       eq(driveShares.organizationId, organizationId),
       eq(driveShares.fileId, fileId),
@@ -462,7 +462,7 @@ export async function shareDriveFile(
     };
   }
 
-  const [share] = await db
+  const [share] = await getDb()
     .insert(driveShares)
     .values({
       organizationId,
@@ -501,7 +501,7 @@ export async function shareDriveFolder(
   await getFolderOrThrow(organizationId, folderId);
   const client = await getClientOrThrow(organizationId, input.clientId);
 
-  const existing = await db.query.driveShares.findFirst({
+  const existing = await getDb().query.driveShares.findFirst({
     where: and(
       eq(driveShares.organizationId, organizationId),
       eq(driveShares.folderId, folderId),
@@ -522,7 +522,7 @@ export async function shareDriveFolder(
     };
   }
 
-  const [share] = await db
+  const [share] = await getDb()
     .insert(driveShares)
     .values({
       organizationId,
@@ -566,7 +566,7 @@ export async function listSharesForItem(
         eq(driveShares.folderId, params.folderId!),
       );
 
-  const rows = await db.query.driveShares.findMany({
+  const rows = await getDb().query.driveShares.findMany({
     where,
     orderBy: [desc(driveShares.createdAt)],
     with: {
@@ -592,7 +592,7 @@ export async function revokeShare(
   organizationId: string,
   shareId: string,
 ): Promise<void> {
-  const share = await db.query.driveShares.findFirst({
+  const share = await getDb().query.driveShares.findFirst({
     where: and(
       eq(driveShares.id, shareId),
       eq(driveShares.organizationId, organizationId),
@@ -608,7 +608,7 @@ export async function revokeShare(
     });
   }
 
-  await db.delete(driveShares).where(eq(driveShares.id, shareId));
+  await getDb().delete(driveShares).where(eq(driveShares.id, shareId));
 }
 
 export async function listClientDrive(
@@ -617,7 +617,7 @@ export async function listClientDrive(
 ): Promise<ClientDriveFileItem[]> {
   await getClientOrThrow(organizationId, clientId);
 
-  const shares = await db.query.driveShares.findMany({
+  const shares = await getDb().query.driveShares.findMany({
     where: and(
       eq(driveShares.organizationId, organizationId),
       eq(driveShares.clientId, clientId),
@@ -639,7 +639,7 @@ export async function listClientDrive(
 
   const folderFileRows =
     descendantFolderIds.length > 0
-      ? await db.query.driveFiles.findMany({
+      ? await getDb().query.driveFiles.findMany({
           where: and(
             eq(driveFiles.organizationId, organizationId),
             inArray(driveFiles.folderId, descendantFolderIds),
@@ -649,7 +649,7 @@ export async function listClientDrive(
 
   const directFileRows =
     directFileIds.length > 0
-      ? await db.query.driveFiles.findMany({
+      ? await getDb().query.driveFiles.findMany({
           where: and(
             eq(driveFiles.organizationId, organizationId),
             inArray(driveFiles.id, directFileIds),
@@ -709,7 +709,7 @@ async function getAncestorFolderIds(
   organizationId: string,
   folderId: string,
 ): Promise<string[]> {
-  const allFolders = await db.query.driveFolders.findMany({
+  const allFolders = await getDb().query.driveFolders.findMany({
     where: eq(driveFolders.organizationId, organizationId),
     columns: { id: true, parentId: true },
   });
@@ -741,7 +741,7 @@ async function isFolderSharedToClient(
     return false;
   }
 
-  const share = await db.query.driveShares.findFirst({
+  const share = await getDb().query.driveShares.findFirst({
     where: and(
       eq(driveShares.organizationId, organizationId),
       eq(driveShares.clientId, clientId),
@@ -760,7 +760,7 @@ export async function assertClientFileAccess(
 ): Promise<typeof driveFiles.$inferSelect> {
   const file = await getFileOrThrow(organizationId, fileId);
 
-  const directShare = await db.query.driveShares.findFirst({
+  const directShare = await getDb().query.driveShares.findFirst({
     where: and(
       eq(driveShares.organizationId, organizationId),
       eq(driveShares.clientId, clientId),
@@ -815,7 +815,7 @@ export async function deleteDriveFile(
     // Blob may already be gone; continue with DB cleanup.
   }
 
-  await db.delete(driveFiles).where(eq(driveFiles.id, fileId));
+  await getDb().delete(driveFiles).where(eq(driveFiles.id, fileId));
 }
 
 export async function getDriveFileBlobStream(pathname: string) {

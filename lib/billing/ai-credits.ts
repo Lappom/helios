@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
 import type { PlanTier } from "@/lib/auth/types";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import type { QuotaCheckResult } from "./access";
 import { getPlanLimit } from "./plans";
@@ -29,7 +29,7 @@ export async function consumeAiCredits(
 
   const limit = getPlanLimit(planTier, "ai");
 
-  const subscription = await db.query.subscriptions.findFirst({
+  const subscription = await getDb().query.subscriptions.findFirst({
     where: eq(subscriptions.organizationId, organizationId),
     columns: { aiCreditsUsed: true },
   });
@@ -45,7 +45,7 @@ export async function consumeAiCredits(
     });
   }
 
-  await db
+  await getDb()
     .update(subscriptions)
     .set({
       aiCreditsUsed: used + amount,
@@ -69,7 +69,7 @@ export async function consumeAiCredits(
 }
 
 export async function resetAllAiCredits(): Promise<number> {
-  const rows = await db
+  const rows = await getDb()
     .update(subscriptions)
     .set({
       aiCreditsUsed: 0,

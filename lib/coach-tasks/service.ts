@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients, coachTasks } from "@/lib/db/schema";
 
 export type CreateCoachTaskInput = {
@@ -16,7 +16,7 @@ export async function createCoachTask(
   organizationId: string,
   input: CreateCoachTaskInput,
 ) {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, input.clientId),
@@ -33,7 +33,7 @@ export async function createCoachTask(
     });
   }
 
-  const [task] = await db
+  const [task] = await getDb()
     .insert(coachTasks)
     .values({
       organizationId,

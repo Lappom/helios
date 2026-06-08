@@ -27,7 +27,7 @@ import type {
   WeightDataPoint,
 } from "@/lib/assessments/types";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   assessmentFields,
   assessmentResponses,
@@ -93,7 +93,7 @@ function clientDisplayName(client: {
 }
 
 async function getTemplateRowOrThrow(organizationId: string, templateId: string) {
-  const template = await db.query.assessmentTemplates.findFirst({
+  const template = await getDb().query.assessmentTemplates.findFirst({
     where: and(
       eq(assessmentTemplates.organizationId, organizationId),
       eq(assessmentTemplates.id, templateId),
@@ -116,7 +116,7 @@ async function getAssessmentRowOrThrow(
   organizationId: string,
   assessmentId: string,
 ) {
-  const assessment = await db.query.assessments.findFirst({
+  const assessment = await getDb().query.assessments.findFirst({
     where: and(
       eq(assessments.organizationId, organizationId),
       eq(assessments.id, assessmentId),
@@ -144,7 +144,7 @@ async function clearDefaultTemplate(organizationId: string, exceptId?: string) {
     conditions.push(sql`${assessmentTemplates.id} <> ${exceptId}`);
   }
 
-  await db
+  await getDb()
     .update(assessmentTemplates)
     .set({ isDefault: false })
     .where(and(...conditions));
@@ -163,14 +163,14 @@ export async function listAssessmentTemplates(
   const where = and(...filters);
 
   const [rows, totalRow] = await Promise.all([
-    db.query.assessmentTemplates.findMany({
+    getDb().query.assessmentTemplates.findMany({
       where,
       orderBy: [desc(assessmentTemplates.updatedAt)],
       limit: options.limit,
       offset: options.offset,
       with: { fields: { columns: { id: true } } },
     }),
-    db.select({ total: count() }).from(assessmentTemplates).where(where),
+    getDb().select({ total: count() }).from(assessmentTemplates).where(where),
   ]);
 
   return {
@@ -198,7 +198,7 @@ export async function createAssessmentTemplate(
     await clearDefaultTemplate(organizationId);
   }
 
-  const [template] = await db
+  const [template] = await getDb()
     .insert(assessmentTemplates)
     .values({
       organizationId,
@@ -218,7 +218,7 @@ export async function getAssessmentTemplateTree(
   organizationId: string,
   templateId: string,
 ): Promise<AssessmentTemplateTree> {
-  const template = await db.query.assessmentTemplates.findFirst({
+  const template = await getDb().query.assessmentTemplates.findFirst({
     where: and(
       eq(assessmentTemplates.organizationId, organizationId),
       eq(assessmentTemplates.id, templateId),
@@ -263,7 +263,7 @@ export async function patchAssessmentTemplate(
     await clearDefaultTemplate(organizationId, templateId);
   }
 
-  await db
+  await getDb()
     .update(assessmentTemplates)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
@@ -292,7 +292,7 @@ export async function deleteAssessmentTemplate(
 ): Promise<void> {
   await getTemplateRowOrThrow(organizationId, templateId);
 
-  const inUse = await db.query.assessments.findFirst({
+  const inUse = await getDb().query.assessments.findFirst({
     where: and(
       eq(assessments.organizationId, organizationId),
       eq(assessments.templateId, templateId),
@@ -309,7 +309,7 @@ export async function deleteAssessmentTemplate(
     });
   }
 
-  await db
+  await getDb()
     .delete(assessmentTemplates)
     .where(
       and(
@@ -320,7 +320,7 @@ export async function deleteAssessmentTemplate(
 }
 
 async function getNextFieldSortOrder(templateId: string): Promise<number> {
-  const row = await db.query.assessmentFields.findFirst({
+  const row = await getDb().query.assessmentFields.findFirst({
     where: eq(assessmentFields.templateId, templateId),
     orderBy: [desc(assessmentFields.sortOrder)],
     columns: { sortOrder: true },
@@ -336,7 +336,7 @@ export async function createAssessmentField(
   await getTemplateRowOrThrow(organizationId, templateId);
   const sortOrder = await getNextFieldSortOrder(templateId);
 
-  await db.insert(assessmentFields).values({
+  await getDb().insert(assessmentFields).values({
     organizationId,
     templateId,
     sortOrder,
@@ -358,7 +358,7 @@ export async function patchAssessmentField(
 ): Promise<AssessmentTemplateTree> {
   await getTemplateRowOrThrow(organizationId, templateId);
 
-  const field = await db.query.assessmentFields.findFirst({
+  const field = await getDb().query.assessmentFields.findFirst({
     where: and(
       eq(assessmentFields.organizationId, organizationId),
       eq(assessmentFields.templateId, templateId),
@@ -375,7 +375,7 @@ export async function patchAssessmentField(
     });
   }
 
-  await db
+  await getDb()
     .update(assessmentFields)
     .set({
       ...(input.label !== undefined ? { label: input.label } : {}),
@@ -395,7 +395,7 @@ export async function deleteAssessmentField(
 ): Promise<AssessmentTemplateTree> {
   await getTemplateRowOrThrow(organizationId, templateId);
 
-  await db
+  await getDb()
     .delete(assessmentFields)
     .where(
       and(
@@ -405,14 +405,14 @@ export async function deleteAssessmentField(
       ),
     );
 
-  const remaining = await db.query.assessmentFields.findMany({
+  const remaining = await getDb().query.assessmentFields.findMany({
     where: eq(assessmentFields.templateId, templateId),
     orderBy: [asc(assessmentFields.sortOrder)],
   });
 
   await Promise.all(
     remaining.map((field, index) =>
-      db
+      getDb()
         .update(assessmentFields)
         .set({ sortOrder: index })
         .where(eq(assessmentFields.id, field.id)),
@@ -429,7 +429,7 @@ export async function reorderAssessmentFields(
 ): Promise<AssessmentTemplateTree> {
   await getTemplateRowOrThrow(organizationId, templateId);
 
-  const existing = await db.query.assessmentFields.findMany({
+  const existing = await getDb().query.assessmentFields.findMany({
     where: and(
       eq(assessmentFields.organizationId, organizationId),
       eq(assessmentFields.templateId, templateId),
@@ -457,7 +457,7 @@ export async function reorderAssessmentFields(
 
   await Promise.all(
     fieldIds.map((id, index) =>
-      db
+      getDb()
         .update(assessmentFields)
         .set({ sortOrder: index })
         .where(eq(assessmentFields.id, id)),
@@ -475,7 +475,7 @@ export async function createAssessment(
 ): Promise<AssessmentDetail> {
   await getTemplateRowOrThrow(organizationId, input.templateId);
 
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, input.clientId),
@@ -495,7 +495,7 @@ export async function createAssessment(
     ? new Date(input.dueAt)
     : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-  const [assessment] = await db
+  const [assessment] = await getDb()
     .insert(assessments)
     .values({
       organizationId,
@@ -533,7 +533,7 @@ export async function listAssessments(
 
   const where = and(...filters);
 
-  const rows = await db.query.assessments.findMany({
+  const rows = await getDb().query.assessments.findMany({
     where,
     orderBy: [desc(assessments.updatedAt)],
     limit: options.limit,
@@ -544,7 +544,7 @@ export async function listAssessments(
     },
   });
 
-  const totalRow = await db
+  const totalRow = await getDb()
     .select({ total: count() })
     .from(assessments)
     .where(where);
@@ -573,7 +573,7 @@ export async function getAssessmentDetail(
   organizationId: string,
   assessmentId: string,
 ): Promise<AssessmentDetail> {
-  const assessment = await db.query.assessments.findFirst({
+  const assessment = await getDb().query.assessments.findFirst({
     where: and(
       eq(assessments.organizationId, organizationId),
       eq(assessments.id, assessmentId),
@@ -745,12 +745,12 @@ export async function submitAssessment(
     })),
   );
 
-  await db
+  await getDb()
     .delete(assessmentResponses)
     .where(eq(assessmentResponses.assessmentId, assessmentId));
 
   if (input.responses.length > 0) {
-    await db.insert(assessmentResponses).values(
+    await getDb().insert(assessmentResponses).values(
       input.responses.map((response) => ({
         organizationId,
         assessmentId,
@@ -763,7 +763,7 @@ export async function submitAssessment(
     );
   }
 
-  await db
+  await getDb()
     .update(assessments)
     .set({
       status: "submitted",
@@ -799,7 +799,7 @@ export async function reviewAssessment(
     });
   }
 
-  await db
+  await getDb()
     .update(assessments)
     .set({
       status: "reviewed",
@@ -829,7 +829,7 @@ export async function upsertAssessmentPhotoResponse(
     });
   }
 
-  const field = await db.query.assessmentFields.findFirst({
+  const field = await getDb().query.assessmentFields.findFirst({
     where: and(
       eq(assessmentFields.organizationId, organizationId),
       eq(assessmentFields.templateId, assessment.templateId),
@@ -847,7 +847,7 @@ export async function upsertAssessmentPhotoResponse(
     });
   }
 
-  const existing = await db.query.assessmentResponses.findFirst({
+  const existing = await getDb().query.assessmentResponses.findFirst({
     where: and(
       eq(assessmentResponses.assessmentId, assessmentId),
       eq(assessmentResponses.fieldId, fieldId),
@@ -855,12 +855,12 @@ export async function upsertAssessmentPhotoResponse(
   });
 
   if (existing) {
-    await db
+    await getDb()
       .update(assessmentResponses)
       .set({ photoBlobPath })
       .where(eq(assessmentResponses.id, existing.id));
   } else {
-    await db.insert(assessmentResponses).values({
+    await getDb().insert(assessmentResponses).values({
       organizationId,
       assessmentId,
       fieldId,
@@ -979,7 +979,7 @@ export async function compareClientAssessments(
   assessmentIdA?: string,
   assessmentIdB?: string,
 ): Promise<AssessmentCompareResult> {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -1002,7 +1002,7 @@ export async function compareClientAssessments(
     current = await getAssessmentDetail(organizationId, assessmentIdA);
     previous = await getAssessmentDetail(organizationId, assessmentIdB);
   } else {
-    const reviewed = await db.query.assessments.findMany({
+    const reviewed = await getDb().query.assessments.findMany({
       where: and(
         eq(assessments.organizationId, organizationId),
         eq(assessments.clientId, clientId),
@@ -1023,7 +1023,7 @@ export async function compareClientAssessments(
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-  const historyRows = await db.query.assessments.findMany({
+  const historyRows = await getDb().query.assessments.findMany({
     where: and(
       eq(assessments.organizationId, organizationId),
       eq(assessments.clientId, clientId),
@@ -1058,7 +1058,7 @@ export async function listClientPendingAssessments(
   organizationId: string,
   clientId: string,
 ): Promise<ClientPendingAssessment[]> {
-  const rows = await db.query.assessments.findMany({
+  const rows = await getDb().query.assessments.findMany({
     where: and(
       eq(assessments.organizationId, organizationId),
       eq(assessments.clientId, clientId),
@@ -1077,7 +1077,7 @@ export async function listClientPendingAssessments(
 }
 
 export async function getDefaultTemplateForOrg(organizationId: string) {
-  const template = await db.query.assessmentTemplates.findFirst({
+  const template = await getDb().query.assessmentTemplates.findFirst({
     where: and(
       eq(assessmentTemplates.organizationId, organizationId),
       eq(assessmentTemplates.isDefault, true),
@@ -1088,7 +1088,7 @@ export async function getDefaultTemplateForOrg(organizationId: string) {
     return template;
   }
 
-  return db.query.assessmentTemplates.findFirst({
+  return getDb().query.assessmentTemplates.findFirst({
     where: and(
       eq(assessmentTemplates.organizationId, organizationId),
       eq(assessmentTemplates.autoAssignOnProgramStart, true),
@@ -1105,7 +1105,7 @@ export async function createDueAssessments(): Promise<{ created: number }> {
   const now = new Date();
   let created = 0;
 
-  const activeAssignments = await db.query.programAssignments.findMany({
+  const activeAssignments = await getDb().query.programAssignments.findMany({
     where: eq(programAssignments.status, "active"),
     with: {
       client: { columns: { id: true, organizationId: true } },
@@ -1131,7 +1131,7 @@ export async function createDueAssessments(): Promise<{ created: number }> {
 
     const windowKey = monthWindowKey(now);
 
-    const existing = await db.query.assessments.findFirst({
+    const existing = await getDb().query.assessments.findFirst({
       where: and(
         eq(assessments.organizationId, organizationId),
         eq(assessments.clientId, assignment.clientId),
@@ -1147,7 +1147,7 @@ export async function createDueAssessments(): Promise<{ created: number }> {
     }
 
     if (template.frequency === "monthly") {
-      const reviewedThisMonth = await db.query.assessments.findFirst({
+      const reviewedThisMonth = await getDb().query.assessments.findFirst({
         where: and(
           eq(assessments.organizationId, organizationId),
           eq(assessments.clientId, assignment.clientId),
@@ -1194,7 +1194,7 @@ export async function seedDefaultTemplateIfMissing(
   organizationId: string,
   coachClerkUserId: string,
 ): Promise<void> {
-  const existing = await db.query.assessmentTemplates.findFirst({
+  const existing = await getDb().query.assessmentTemplates.findFirst({
     where: eq(assessmentTemplates.organizationId, organizationId),
     columns: { id: true },
   });

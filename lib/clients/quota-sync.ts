@@ -1,5 +1,5 @@
 import { and, count, eq, inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients, subscriptions } from "@/lib/db/schema";
 import type { ClientStatus } from "@/lib/validators/clients";
 import { getPlanLimit } from "@/lib/billing/plans";
@@ -10,7 +10,7 @@ import { countsTowardQuota, quotaDelta, QUOTA_STATUSES } from "./quota-rules";
 export { QUOTA_STATUSES, countsTowardQuota, quotaDelta } from "./quota-rules";
 
 export async function countQuotaClients(organizationId: string): Promise<number> {
-  const [result] = await db
+  const [result] = await getDb()
     .select({ value: count() })
     .from(clients)
     .where(
@@ -28,7 +28,7 @@ export async function reconcileActiveClientCount(
 ): Promise<number> {
   const total = await countQuotaClients(organizationId);
 
-  await db
+  await getDb()
     .update(subscriptions)
     .set({
       activeClientCount: total,

@@ -8,7 +8,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { foods } from "@/lib/db/schema";
 import { problem } from "@/lib/api/response";
 import type {
@@ -130,7 +130,7 @@ async function upsertOffFood(input: OffFoodInput): Promise<string> {
     input.barcode,
   );
 
-  const [existing] = await db
+  const [existing] = await getDb()
     .select({ id: foods.id })
     .from(foods)
     .where(
@@ -159,11 +159,11 @@ async function upsertOffFood(input: OffFoodInput): Promise<string> {
   };
 
   if (existing) {
-    await db.update(foods).set(values).where(eq(foods.id, existing.id));
+    await getDb().update(foods).set(values).where(eq(foods.id, existing.id));
     return existing.id;
   }
 
-  const [inserted] = await db
+  const [inserted] = await getDb()
     .insert(foods)
     .values(values)
     .returning({ id: foods.id });
@@ -205,12 +205,12 @@ async function queryLocalFoods(
   const where = buildSearchWhere(organizationId, options);
   const orderBy = buildSearchOrder(options);
 
-  const [totalRow] = await db
+  const [totalRow] = await getDb()
     .select({ total: count() })
     .from(foods)
     .where(where);
 
-  const rows = await db
+  const rows = await getDb()
     .select()
     .from(foods)
     .where(where)
@@ -238,7 +238,7 @@ export async function getFoodById(
   organizationId: string,
   id: string,
 ): Promise<FoodDetail> {
-  const [row] = await db
+  const [row] = await getDb()
     .select()
     .from(foods)
     .where(and(eq(foods.id, id), buildVisibilityCondition(organizationId)))
@@ -268,7 +268,7 @@ export async function getFoodByBarcode(
     });
   }
 
-  const [cached] = await db
+  const [cached] = await getDb()
     .select()
     .from(foods)
     .where(
@@ -307,7 +307,7 @@ export async function createCustomFood(
     input.barcode,
   );
 
-  const [inserted] = await db
+  const [inserted] = await getDb()
     .insert(foods)
     .values({
       organizationId,
@@ -336,7 +336,7 @@ export async function updateCustomFood(
   id: string,
   input: UpdateFoodInput,
 ): Promise<FoodDetail> {
-  const [existing] = await db
+  const [existing] = await getDb()
     .select()
     .from(foods)
     .where(
@@ -375,7 +375,7 @@ export async function updateCustomFood(
         : existing.sugarGPer100g,
   };
 
-  const [updated] = await db
+  const [updated] = await getDb()
     .update(foods)
     .set({
       name: nextName,
@@ -401,7 +401,7 @@ export async function syncStaleOffFoods(): Promise<{ synced: number }> {
   const staleBefore = new Date();
   staleBefore.setDate(staleBefore.getDate() - OFF_REFRESH_STALE_DAYS);
 
-  const staleRows = await db
+  const staleRows = await getDb()
     .select({
       id: foods.id,
       externalId: foods.externalId,

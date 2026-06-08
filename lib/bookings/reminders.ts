@@ -1,7 +1,7 @@
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { TZDate } from "@date-fns/tz";
 import { addHours, addMinutes, endOfDay, startOfDay } from "date-fns";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { bookings, clients } from "@/lib/db/schema";
 import { getOrganizationPlanTier } from "@/lib/notifications/cron";
 import { dispatchNotification } from "@/lib/notifications/dispatch";
@@ -35,7 +35,7 @@ export async function enqueueNotification(
   const recipients: { clientId?: string; email?: string }[] = [];
 
   if (payload.clientId) {
-    const client = await db.query.clients.findFirst({
+    const client = await getDb().query.clients.findFirst({
       where: and(
         eq(clients.organizationId, payload.organizationId),
         eq(clients.id, payload.clientId),
@@ -92,7 +92,7 @@ export async function processBookingReminders(now: Date = new Date()): Promise<{
   const h1WindowStart = addMinutes(nowTz, 55);
   const h1WindowEnd = addMinutes(nowTz, 65);
 
-  const activeBookings = await db.query.bookings.findMany({
+  const activeBookings = await getDb().query.bookings.findMany({
     where: and(
       inArray(bookings.status, ["pending", "confirmed"]),
       gte(bookings.startAt, now),
@@ -134,7 +134,7 @@ export async function processBookingReminders(now: Date = new Date()): Promise<{
         startAt: booking.startAt.toISOString(),
       });
 
-      await db
+      await getDb()
         .update(bookings)
         .set({
           remindersSent: { ...reminders, d1: true },
@@ -162,7 +162,7 @@ export async function processBookingReminders(now: Date = new Date()): Promise<{
         startAt: booking.startAt.toISOString(),
       });
 
-      await db
+      await getDb()
         .update(bookings)
         .set({
           remindersSent: { ...reminders, h1: true },

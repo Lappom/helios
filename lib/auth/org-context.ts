@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb, runWithDbScope } from "@/lib/db";
 import { clients, teamMembers } from "@/lib/db/schema";
 import { ensureOrganizationSynced } from "@/lib/db/sync/clerk";
 import {
@@ -18,51 +18,53 @@ export async function getOrgContext(): Promise<OrgContext | null> {
     return null;
   }
 
-  const organization = await ensureOrganizationSynced(orgId);
+  return runWithDbScope({ bypass: true }, async () => {
+    const organization = await ensureOrganizationSynced(orgId);
 
-  if (!organization) {
-    return null;
-  }
+    if (!organization) {
+      return null;
+    }
 
-  const clientRecord = await db.query.clients.findFirst({
-    where: and(
-      eq(clients.organizationId, organization.id),
-      eq(clients.clerkUserId, userId),
-    ),
-    columns: { id: true },
-  });
+    const clientRecord = await getDb().query.clients.findFirst({
+      where: and(
+        eq(clients.organizationId, organization.id),
+        eq(clients.clerkUserId, userId),
+      ),
+      columns: { id: true },
+    });
 
-  if (clientRecord) {
+    if (clientRecord) {
+      return {
+        clerkUserId: userId,
+        clerkOrgId: orgId,
+        organizationId: organization.id,
+        role: "client" as const,
+        planTier: organization.planTier,
+      };
+    }
+
+    const member = await getDb().query.teamMembers.findFirst({
+      where: and(
+        eq(teamMembers.organizationId, organization.id),
+        eq(teamMembers.clerkUserId, userId),
+      ),
+      columns: { role: true },
+    });
+
+    const role: OrgRole = member
+      ? mapTeamMemberRoleToOrgRole(member.role)
+      : orgRole
+        ? mapTeamMemberRoleToOrgRole(mapClerkRoleToTeamMemberRole(orgRole))
+        : "coach";
+
     return {
       clerkUserId: userId,
       clerkOrgId: orgId,
       organizationId: organization.id,
-      role: "client",
+      role,
       planTier: organization.planTier,
     };
-  }
-
-  const member = await db.query.teamMembers.findFirst({
-    where: and(
-      eq(teamMembers.organizationId, organization.id),
-      eq(teamMembers.clerkUserId, userId),
-    ),
-    columns: { role: true },
   });
-
-  const role: OrgRole = member
-    ? mapTeamMemberRoleToOrgRole(member.role)
-    : orgRole
-      ? mapTeamMemberRoleToOrgRole(mapClerkRoleToTeamMemberRole(orgRole))
-      : "coach";
-
-  return {
-    clerkUserId: userId,
-    clerkOrgId: orgId,
-    organizationId: organization.id,
-    role,
-    planTier: organization.planTier,
-  };
 }
 
 export async function requireOrg(): Promise<OrgContext> {

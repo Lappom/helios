@@ -4,7 +4,7 @@ import { AssessmentCompareView } from "@/components/coach/assessments/assessment
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/org-context";
 import { compareClientAssessments } from "@/lib/assessments/service";
-import { db } from "@/lib/db";
+import { getDb, runWithDbScope } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 
@@ -16,18 +16,31 @@ export default async function ClientAssessmentComparePage({ params }: PageProps)
   const org = await requireRole("org_owner", "org_admin", "coach", "assistant");
   const { id: clientId } = await params;
 
-  const client = await db.query.clients.findFirst({
-    where: and(
-      eq(clients.organizationId, org.organizationId),
-      eq(clients.id, clientId),
-    ),
-  });
+  const { client, compare } = await runWithDbScope(
+    { organizationId: org.organizationId },
+    async () => {
+      const clientRow = await getDb().query.clients.findFirst({
+        where: and(
+          eq(clients.organizationId, org.organizationId),
+          eq(clients.id, clientId),
+        ),
+      });
 
-  if (!client) {
+      if (!clientRow) {
+        return { client: null, compare: null };
+      }
+
+      const compareData = await compareClientAssessments(
+        org.organizationId,
+        clientId,
+      );
+      return { client: clientRow, compare: compareData };
+    },
+  );
+
+  if (!client || !compare) {
     notFound();
   }
-
-  const compare = await compareClientAssessments(org.organizationId, clientId);
 
   return (
     <div className="space-y-6">

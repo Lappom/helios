@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients, notificationLogs } from "@/lib/db/schema";
 import { consumeNotifications } from "@/lib/billing/notification-quota";
 import { contentToHtml, sendNotificationEmail } from "./email";
@@ -20,7 +20,7 @@ async function resolveClientVariables(
   clientId: string,
   metadata?: Record<string, unknown>,
 ): Promise<RenderVariables> {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -99,7 +99,7 @@ export async function dispatchNotification(
   }
 
   if (input.idempotencyKey) {
-    const existing = await db.query.notificationLogs.findFirst({
+    const existing = await getDb().query.notificationLogs.findFirst({
       where: eq(notificationLogs.idempotencyKey, input.idempotencyKey),
       columns: { id: true },
     });
@@ -138,7 +138,7 @@ export async function dispatchNotification(
       : undefined;
 
     if (idempotencyKey) {
-      const duplicate = await db.query.notificationLogs.findFirst({
+      const duplicate = await getDb().query.notificationLogs.findFirst({
         where: eq(notificationLogs.idempotencyKey, idempotencyKey),
         columns: { id: true },
       });
@@ -156,7 +156,7 @@ export async function dispatchNotification(
     );
 
     const now = new Date();
-    const [log] = await db
+    const [log] = await getDb()
       .insert(notificationLogs)
       .values({
         organizationId: input.organizationId,

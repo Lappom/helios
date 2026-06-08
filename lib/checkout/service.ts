@@ -4,7 +4,7 @@ import type { PlanTier } from "@/lib/auth/types";
 import { createBooking } from "@/lib/bookings/service";
 import { createClient, findClientByEmail } from "@/lib/clients/service";
 import { inviteClientToPortal } from "@/lib/clients/invite";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { bookings, coachServices, referralCodes } from "@/lib/db/schema";
 import { emitHeliosEvent } from "@/lib/events/emit-event";
 import { assignProgram } from "@/lib/programs/assignments";
@@ -80,7 +80,7 @@ function assertShopEligible(planTier: PlanTier): void {
 }
 
 async function loadCheckoutService(serviceId: string) {
-  const service = await db.query.coachServices.findFirst({
+  const service = await getDb().query.coachServices.findFirst({
     where: eq(coachServices.id, serviceId),
     with: {
       profile: true,
@@ -208,7 +208,7 @@ async function createNonScheduledBooking(
     startAt.getTime() + service.durationMinutes * 60 * 1000,
   );
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(bookings)
     .values({
       organizationId: service.organizationId,
@@ -271,7 +271,7 @@ export async function completeCheckoutBooking(
     );
     bookingId = booking.id;
 
-    await db
+    await getDb()
       .update(bookings)
       .set({
         promoCodeId: pricing.promoCodeId,
@@ -312,7 +312,7 @@ export async function completeCheckoutBooking(
     clientCreated = true;
   }
 
-  await db
+  await getDb()
     .update(bookings)
     .set({ clientId })
     .where(eq(bookings.id, bookingId));
@@ -325,7 +325,7 @@ export async function completeCheckoutBooking(
   }
 
   if (pricing.referralCodeId) {
-    const referralCode = await db.query.referralCodes.findFirst({
+    const referralCode = await getDb().query.referralCodes.findFirst({
       where: eq(referralCodes.id, pricing.referralCodeId),
     });
 

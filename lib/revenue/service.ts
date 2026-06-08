@@ -10,7 +10,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   bookings,
   clientStatusEvents,
@@ -132,7 +132,7 @@ async function aggregatePaymentsForMonth(
   end.setUTCMonth(end.getUTCMonth() + 1);
   end.setMilliseconds(end.getMilliseconds() - 1);
 
-  const [row] = await db
+  const [row] = await getDb()
     .select({
       totalRevenueCents: sql<number>`coalesce(sum(${payments.amountCents}), 0)::int`,
       mrrCents: sql<number>`coalesce(sum(case when ${payments.type} = 'subscription' then ${payments.amountCents} else 0 end), 0)::int`,
@@ -176,12 +176,12 @@ export async function listPayments(
   const where = buildPaymentFilters(organizationId, query);
   const offset = (query.page - 1) * query.limit;
 
-  const [totalRow] = await db
+  const [totalRow] = await getDb()
     .select({ total: count() })
     .from(payments)
     .where(where);
 
-  const rows = await db
+  const rows = await getDb()
     .select({
       payment: payments,
       clientFirstName: clients.firstName,
@@ -208,7 +208,7 @@ export async function createManualPayment(
   input: CreateManualPaymentInput,
 ): Promise<PaymentListItem> {
   if (input.clientId) {
-    const client = await db.query.clients.findFirst({
+    const client = await getDb().query.clients.findFirst({
       where: and(
         eq(clients.id, input.clientId),
         eq(clients.organizationId, organizationId),
@@ -226,7 +226,7 @@ export async function createManualPayment(
   }
 
   if (input.serviceId) {
-    const service = await db.query.coachServices.findFirst({
+    const service = await getDb().query.coachServices.findFirst({
       where: and(
         eq(coachServices.id, input.serviceId),
         eq(coachServices.organizationId, organizationId),
@@ -243,7 +243,7 @@ export async function createManualPayment(
     }
   }
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(payments)
     .values({
       organizationId,
@@ -273,12 +273,12 @@ export async function createManualPayment(
   emitPaymentReceived(created);
 
   const client = input.clientId
-    ? await db.query.clients.findFirst({
+    ? await getDb().query.clients.findFirst({
         where: eq(clients.id, input.clientId),
       })
     : null;
   const service = input.serviceId
-    ? await db.query.coachServices.findFirst({
+    ? await getDb().query.coachServices.findFirst({
         where: eq(coachServices.id, input.serviceId),
       })
     : null;
@@ -295,7 +295,7 @@ export async function createPaymentFromBooking(
   organizationId: string,
   bookingId: string,
 ): Promise<PaymentListItem | null> {
-  const existing = await db.query.payments.findFirst({
+  const existing = await getDb().query.payments.findFirst({
     where: and(
       eq(payments.organizationId, organizationId),
       eq(payments.bookingId, bookingId),
@@ -306,7 +306,7 @@ export async function createPaymentFromBooking(
     return null;
   }
 
-  const booking = await db.query.bookings.findFirst({
+  const booking = await getDb().query.bookings.findFirst({
     where: and(
       eq(bookings.id, bookingId),
       eq(bookings.organizationId, organizationId),
@@ -337,7 +337,7 @@ export async function createPaymentFromBooking(
   const paymentType: PaymentType =
     booking.paymentStatus === "external" ? "external" : "one_time";
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(payments)
     .values({
       organizationId,
@@ -364,7 +364,7 @@ export async function createPaymentFromBooking(
   emitPaymentReceived(created);
 
   const client = booking.clientId
-    ? await db.query.clients.findFirst({
+    ? await getDb().query.clients.findFirst({
         where: eq(clients.id, booking.clientId),
       })
     : null;
@@ -390,7 +390,7 @@ export async function getRevenueDashboard(
     cursor.setUTCMonth(cursor.getUTCMonth() + 1);
   }
 
-  const snapshotRows = await db
+  const snapshotRows = await getDb()
     .select()
     .from(revenueSnapshots)
     .where(
@@ -426,7 +426,7 @@ export async function getRevenueDashboard(
     currentMonthKey,
   );
 
-  const [paymentCountRow] = await db
+  const [paymentCountRow] = await getDb()
     .select({ total: count() })
     .from(payments)
     .where(
@@ -479,7 +479,7 @@ export async function getRevenueByClient(
 ): Promise<RevenueByClientReport> {
   const where = buildDateRangeFilter(organizationId, query.from, query.to);
 
-  const clientRows = await db
+  const clientRows = await getDb()
     .select({
       clientId: payments.clientId,
       clientFirstName: clients.firstName,
@@ -494,7 +494,7 @@ export async function getRevenueByClient(
     .orderBy(desc(sql`sum(${payments.amountCents})`))
     .limit(10);
 
-  const serviceRows = await db
+  const serviceRows = await getDb()
     .select({
       serviceId: payments.serviceId,
       serviceName: coachServices.name,
@@ -549,7 +549,7 @@ export async function buildRevenueCsv(
     query.to,
   );
 
-  const rows = await db
+  const rows = await getDb()
     .select({
       paidAt: payments.paidAt,
       amountCents: payments.amountCents,
@@ -584,7 +584,7 @@ export async function buildRevenueCsv(
 }
 
 async function countActiveClients(organizationId: string): Promise<number> {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ total: count() })
     .from(clients)
     .where(
@@ -608,7 +608,7 @@ async function countClientStatusChanges(
 
   const targetStatus = direction === "new" ? "ACTIVE" : "CHURNED";
 
-  const [row] = await db
+  const [row] = await getDb()
     .select({ total: count() })
     .from(clientStatusEvents)
     .where(
@@ -628,7 +628,7 @@ export async function computeMonthlySnapshots(): Promise<{ upserted: number }> {
   const previousMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
   const monthKey = monthStart(previousMonth);
 
-  const orgRows = await db.select({ id: organizations.id }).from(organizations);
+  const orgRows = await getDb().select({ id: organizations.id }).from(organizations);
 
   let upserted = 0;
 
@@ -642,7 +642,7 @@ export async function computeMonthlySnapshots(): Promise<{ upserted: number }> {
       "churned",
     );
 
-    await db
+    await getDb()
       .insert(revenueSnapshots)
       .values({
         organizationId: org.id,

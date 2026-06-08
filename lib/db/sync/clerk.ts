@@ -1,6 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   clients,
   organizations,
@@ -27,7 +27,7 @@ export async function ensureOrganizationSynced(clerkOrgId: string): Promise<{
   id: string;
   planTier: (typeof organizations.$inferSelect)["planTier"];
 } | null> {
-  const existing = await db.query.organizations.findFirst({
+  const existing = await getDb().query.organizations.findFirst({
     where: eq(organizations.clerkOrgId, clerkOrgId),
     columns: { id: true, planTier: true },
   });
@@ -49,7 +49,7 @@ export async function ensureOrganizationSynced(clerkOrgId: string): Promise<{
     });
 
     return (
-      (await db.query.organizations.findFirst({
+      (await getDb().query.organizations.findFirst({
         where: eq(organizations.clerkOrgId, clerkOrgId),
         columns: { id: true, planTier: true },
       })) ?? null
@@ -72,7 +72,7 @@ export async function handleOrganizationCreated(data: {
   const trialEndsAt = addDays(now, TRIAL_DAYS);
   const periodEnd = addDays(now, 30);
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     const [org] = await tx
       .insert(organizations)
       .values({
@@ -113,7 +113,7 @@ export async function handleOrganizationUpdated(data: {
   name: string;
   slug: string;
 }): Promise<void> {
-  await db
+  await getDb()
     .update(organizations)
     .set({
       name: data.name,
@@ -130,7 +130,7 @@ export async function handleOrganizationDeleted(data: {
     return;
   }
 
-  await db
+  await getDb()
     .delete(organizations)
     .where(eq(organizations.clerkOrgId, data.id));
 }
@@ -140,7 +140,7 @@ export async function handleOrganizationMembershipUpsert(data: {
   public_user_data: { user_id: string; identifier?: string };
   role: string;
 }): Promise<void> {
-  const org = await db.query.organizations.findFirst({
+  const org = await getDb().query.organizations.findFirst({
     where: eq(organizations.clerkOrgId, data.organization.id),
     columns: { id: true },
   });
@@ -159,7 +159,7 @@ export async function handleOrganizationMembershipUpsert(data: {
 
   const teamRole = mapClerkRoleToTeamMemberRole(data.role);
 
-  await db
+  await getDb()
     .insert(teamMembers)
     .values({
       organizationId: org.id,
@@ -191,7 +191,7 @@ async function linkClientMembership(
     return;
   }
 
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.email, email),
@@ -207,7 +207,7 @@ async function linkClientMembership(
     return;
   }
 
-  await db
+  await getDb()
     .update(clients)
     .set({
       clerkUserId: data.public_user_data.user_id,
@@ -223,7 +223,7 @@ export async function handleOrganizationMembershipDeleted(data: {
   public_user_data: { user_id: string; identifier?: string };
   role?: string;
 }): Promise<void> {
-  const org = await db.query.organizations.findFirst({
+  const org = await getDb().query.organizations.findFirst({
     where: eq(organizations.clerkOrgId, data.organization.id),
     columns: { id: true },
   });
@@ -233,7 +233,7 @@ export async function handleOrganizationMembershipDeleted(data: {
   }
 
   if (data.role && isClientClerkRole(data.role)) {
-    await db
+    await getDb()
       .update(clients)
       .set({ clerkUserId: null, updatedAt: new Date() })
       .where(
@@ -245,7 +245,7 @@ export async function handleOrganizationMembershipDeleted(data: {
     return;
   }
 
-  await db.delete(teamMembers).where(
+  await getDb().delete(teamMembers).where(
     and(
       eq(teamMembers.organizationId, org.id),
       eq(teamMembers.clerkUserId, data.public_user_data.user_id),
@@ -262,10 +262,35 @@ export async function handleUserUpdated(data: {
     return;
   }
 
-  await db
+  await getDb()
     .update(clients)
     .set({ email, updatedAt: new Date() })
     .where(eq(clients.clerkUserId, data.id));
+}
+
+export async function handleUserDeleted(data: { id: string }): Promise<void> {
+  const linkedClients = await getDb().query.clients.findMany({
+    where: eq(clients.clerkUserId, data.id),
+    columns: {
+      id: true,
+      organizationId: true,
+    },
+  });
+
+  if (linkedClients.length === 0) {
+    return;
+  }
+
+  const { eraseClientData } = await import("@/lib/privacy/service");
+
+  for (const client of linkedClients) {
+    await eraseClientData(
+      client.organizationId,
+      client.id,
+      { type: "system" },
+      { skipClerkDeletion: true },
+    );
+  }
 }
 
 type SubscriptionWebhookData = {
@@ -303,7 +328,7 @@ export async function handleSubscriptionUpsert(
     return;
   }
 
-  const org = await db.query.organizations.findFirst({
+  const org = await getDb().query.organizations.findFirst({
     where: eq(organizations.clerkOrgId, clerkOrgId),
     columns: { id: true },
   });
@@ -323,7 +348,7 @@ export async function handleSubscriptionUpsert(
     ? new Date(data.current_period_end)
     : addDays(periodStart, 30);
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     if (planTier || planSlug) {
       await tx
         .update(organizations)
@@ -366,7 +391,7 @@ export async function handleSubscriptionDeleted(data: {
     return;
   }
 
-  const org = await db.query.organizations.findFirst({
+  const org = await getDb().query.organizations.findFirst({
     where: eq(organizations.clerkOrgId, clerkOrgId),
     columns: { id: true },
   });
@@ -375,7 +400,7 @@ export async function handleSubscriptionDeleted(data: {
     return;
   }
 
-  await db
+  await getDb()
     .update(subscriptions)
     .set({
       status: "CANCELED",

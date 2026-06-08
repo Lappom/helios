@@ -1,7 +1,7 @@
 import "server-only";
 
 import { and, asc, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   automationActions,
   automationExecutions,
@@ -50,7 +50,7 @@ export async function dispatchAutomationTrigger(
   const { organizationId, clientId } = payload;
   const triggerEventId = resolveTriggerEventId(triggerType, payload);
 
-  const rows = await db.query.automations.findMany({
+  const rows = await getDb().query.automations.findMany({
     where: and(
       eq(automations.organizationId, organizationId),
       eq(automations.isActive, true),
@@ -64,7 +64,7 @@ export async function dispatchAutomationTrigger(
 
   for (const automation of rows) {
     try {
-      const [execution] = await db
+      const [execution] = await getDb()
         .insert(automationExecutions)
         .values({
           organizationId,
@@ -76,7 +76,7 @@ export async function dispatchAutomationTrigger(
         })
         .returning();
 
-      const actionRows = await db.query.automationActions.findMany({
+      const actionRows = await getDb().query.automationActions.findMany({
         where: and(
           eq(automationActions.organizationId, organizationId),
           eq(automationActions.automationId, automation.id),
@@ -84,7 +84,7 @@ export async function dispatchAutomationTrigger(
         orderBy: [asc(automationActions.sortOrder)],
       });
 
-      const org = await db.query.organizations.findFirst({
+      const org = await getDb().query.organizations.findFirst({
         where: eq(organizations.id, organizationId),
         columns: { planTier: true },
       });

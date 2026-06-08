@@ -1,5 +1,5 @@
 import { eq, isNull } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   programMacrocycles,
   programMesocycles,
@@ -16,7 +16,7 @@ export type BackfillPeriodizationResult = {
 };
 
 export async function backfillProgramPeriodization(): Promise<BackfillPeriodizationResult> {
-  const allPrograms = await db.query.programs.findMany({
+  const allPrograms = await getDb().query.programs.findMany({
     columns: { id: true, organizationId: true },
     with: {
       mesocycles: { columns: { id: true }, limit: 1 },
@@ -37,7 +37,7 @@ export async function backfillProgramPeriodization(): Promise<BackfillPeriodizat
       continue;
     }
 
-    await db.transaction(async (tx) => {
+    await getDb().transaction(async (tx) => {
       const mesocycleId = createId();
       const macrocycleId = createId();
       const microcycleId = createId();
@@ -87,7 +87,7 @@ export async function backfillProgramPeriodization(): Promise<BackfillPeriodizat
 }
 
 export async function countProgramsWithoutMesocycles(): Promise<number> {
-  const rows = await db
+  const rows = await getDb()
     .select({ id: programs.id })
     .from(programs)
     .leftJoin(programMesocycles, eq(programMesocycles.programId, programs.id))

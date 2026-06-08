@@ -8,7 +8,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   coachProfiles,
   coachServices,
@@ -123,7 +123,7 @@ async function assertSlugAvailable(
   slug: string,
   excludeProfileId?: string,
 ): Promise<void> {
-  const existing = await db.query.coachProfiles.findFirst({
+  const existing = await getDb().query.coachProfiles.findFirst({
     where: excludeProfileId
       ? and(eq(coachProfiles.slug, slug), ne(coachProfiles.id, excludeProfileId))
       : eq(coachProfiles.slug, slug),
@@ -169,7 +169,7 @@ export async function getOrCreateProfile(
   organizationId: string,
   clerkUserId: string,
 ): Promise<CoachProfileDto> {
-  const existing = await db.query.coachProfiles.findFirst({
+  const existing = await getDb().query.coachProfiles.findFirst({
     where: and(
       eq(coachProfiles.organizationId, organizationId),
       eq(coachProfiles.clerkUserId, clerkUserId),
@@ -181,14 +181,14 @@ export async function getOrCreateProfile(
   }
 
   let slug = defaultSlugForUser(clerkUserId);
-  const slugTaken = await db.query.coachProfiles.findFirst({
+  const slugTaken = await getDb().query.coachProfiles.findFirst({
     where: eq(coachProfiles.slug, slug),
   });
   if (slugTaken) {
     slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
   }
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(coachProfiles)
     .values({
       organizationId,
@@ -242,7 +242,7 @@ export async function patchProfile(
         }
       : undefined;
 
-  const [updated] = await db
+  const [updated] = await getDb()
     .update(coachProfiles)
     .set({
       ...(input.slug !== undefined ? { slug: input.slug } : {}),
@@ -285,7 +285,7 @@ export async function updateProfilePhoto(
 ): Promise<CoachProfileDto> {
   const profile = await getOrCreateProfile(organizationId, clerkUserId);
 
-  const [updated] = await db
+  const [updated] = await getDb()
     .update(coachProfiles)
     .set({ photoUrl })
     .where(
@@ -340,12 +340,12 @@ export async function listPublicCoaches(
 
   const whereClause = and(...conditions);
 
-  const [totalRow] = await db
+  const [totalRow] = await getDb()
     .select({ total: count() })
     .from(coachProfiles)
     .where(whereClause);
 
-  const rows = await db.query.coachProfiles.findMany({
+  const rows = await getDb().query.coachProfiles.findMany({
     where: whereClause,
     orderBy: [asc(coachProfiles.displayName)],
     limit: query.limit,
@@ -375,7 +375,7 @@ export type PublicServiceCheckoutContext = {
 export async function getPublicServiceById(
   serviceId: string,
 ): Promise<PublicServiceCheckoutContext> {
-  const service = await db.query.coachServices.findFirst({
+  const service = await getDb().query.coachServices.findFirst({
     where: eq(coachServices.id, serviceId),
     with: { profile: true },
   });
@@ -399,7 +399,7 @@ export async function getPublicServiceById(
 export async function getPublicCoachBySlug(
   slug: string,
 ): Promise<PublicCoachDto> {
-  const profile = await db.query.coachProfiles.findFirst({
+  const profile = await getDb().query.coachProfiles.findFirst({
     where: and(
       eq(coachProfiles.slug, slug),
       eq(coachProfiles.isPublished, true),
@@ -430,7 +430,7 @@ async function getProfileForOrgOrThrow(
   organizationId: string,
   clerkUserId: string,
 ) {
-  const profile = await db.query.coachProfiles.findFirst({
+  const profile = await getDb().query.coachProfiles.findFirst({
     where: and(
       eq(coachProfiles.organizationId, organizationId),
       eq(coachProfiles.clerkUserId, clerkUserId),
@@ -455,7 +455,7 @@ export async function listServicesForCoach(
 ): Promise<CoachServiceDto[]> {
   const profile = await getOrCreateProfile(organizationId, clerkUserId);
 
-  const rows = await db.query.coachServices.findMany({
+  const rows = await getDb().query.coachServices.findMany({
     where: and(
       eq(coachServices.profileId, profile.id),
       eq(coachServices.organizationId, organizationId),
@@ -473,7 +473,7 @@ export async function createService(
 ): Promise<CoachServiceDto> {
   const profile = await getOrCreateProfile(organizationId, clerkUserId);
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(coachServices)
     .values({
       organizationId,
@@ -499,7 +499,7 @@ async function getServiceForOrgOrThrow(
   organizationId: string,
   serviceId: string,
 ) {
-  const service = await db.query.coachServices.findFirst({
+  const service = await getDb().query.coachServices.findFirst({
     where: and(
       eq(coachServices.id, serviceId),
       eq(coachServices.organizationId, organizationId),
@@ -527,7 +527,7 @@ export async function patchService(
   await getProfileForOrgOrThrow(organizationId, clerkUserId);
   await getServiceForOrgOrThrow(organizationId, serviceId);
 
-  const [updated] = await db
+  const [updated] = await getDb()
     .update(coachServices)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
@@ -571,7 +571,7 @@ export async function deleteService(
   await getProfileForOrgOrThrow(organizationId, clerkUserId);
   await getServiceForOrgOrThrow(organizationId, serviceId);
 
-  await db
+  await getDb()
     .delete(coachServices)
     .where(
       and(
@@ -582,7 +582,7 @@ export async function deleteService(
 }
 
 export async function countPublicCoaches(): Promise<number> {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ total: count() })
     .from(coachProfiles)
     .where(

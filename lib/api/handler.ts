@@ -1,5 +1,6 @@
 import type { OrgContext } from "@/lib/auth/types";
 import { getOrgContext, requireOrg } from "@/lib/auth/org-context";
+import { getDb, runWithDbScope } from "@/lib/db";
 import { hasFeature, hasPlan } from "@/lib/billing/access";
 import type { ClerkFeature } from "@/lib/billing/plans";
 import { applyCorsHeaders, corsPreflightResponse } from "./cors";
@@ -73,7 +74,13 @@ export function withApiHandler(
         }
       }
 
-      const response = await handler({ request, org });
+      const response = org
+        ? await runWithDbScope({ organizationId: org.organizationId }, async () =>
+            handler({ request, org }),
+          )
+        : await runWithDbScope({ bypass: true }, async () =>
+            handler({ request, org }),
+          );
       const headers = applyCorsHeaders(request, response.headers);
       return new Response(response.body, {
         status: response.status,

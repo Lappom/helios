@@ -29,6 +29,13 @@ export const teamMemberRoleEnum = pgEnum("team_member_role", [
   "assistant",
 ]);
 
+export const auditActorTypeEnum = pgEnum("audit_actor_type", [
+  "coach",
+  "client",
+  "system",
+  "api_key",
+]);
+
 export const exerciseTypeEnum = pgEnum("exercise_type", [
   "strength",
   "cardio",

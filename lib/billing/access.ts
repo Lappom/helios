@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import { getOrgContext } from "@/lib/auth/org-context";
 import { problem } from "@/lib/api/response";
@@ -42,7 +42,7 @@ export async function checkQuota(quota: QuotaType): Promise<QuotaCheckResult> {
 
   const resolvedOrgId = orgContext.organizationId;
 
-  const subscription = await db.query.subscriptions.findFirst({
+  const subscription = await getDb().query.subscriptions.findFirst({
     where: eq(subscriptions.organizationId, resolvedOrgId),
     columns: {
       activeClientCount: true,

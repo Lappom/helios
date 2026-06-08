@@ -12,7 +12,7 @@ import {
 import { listExercises } from "@/lib/exercises/service";
 import { buildProgramFromAiDraft } from "@/lib/programs/ai-build";
 import type { ProgramTree } from "@/lib/programs/types";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import type { AiGenerateProgramInput } from "@/lib/validators/ai";
 
@@ -25,7 +25,7 @@ async function loadClientContext(
   organizationId: string,
   clientId: string,
 ): Promise<string | undefined> {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   assignmentSessionOverrides,
   clients,
@@ -24,7 +24,7 @@ import type {
 const ASSIGNABLE_STATUSES = ["ACTIVE", "TRIAL"] as const;
 
 async function getProgramOrThrow(organizationId: string, programId: string) {
-  const program = await db.query.programs.findFirst({
+  const program = await getDb().query.programs.findFirst({
     where: and(
       eq(programs.organizationId, organizationId),
       eq(programs.id, programId),
@@ -47,7 +47,7 @@ async function getAssignmentOrThrow(
   organizationId: string,
   assignmentId: string,
 ) {
-  const assignment = await db.query.programAssignments.findFirst({
+  const assignment = await getDb().query.programAssignments.findFirst({
     where: and(
       eq(programAssignments.organizationId, organizationId),
       eq(programAssignments.id, assignmentId),
@@ -105,7 +105,7 @@ export async function listProgramAssignments(
 ): Promise<ProgramAssignmentItem[]> {
   await getProgramOrThrow(organizationId, programId);
 
-  const rows = await db.query.programAssignments.findMany({
+  const rows = await getDb().query.programAssignments.findMany({
     where: and(
       eq(programAssignments.organizationId, organizationId),
       eq(programAssignments.programId, programId),
@@ -141,7 +141,7 @@ export async function assignProgram(
   }
 
   const uniqueClientIds = [...new Set(input.clientIds)];
-  const clientRows = await db.query.clients.findMany({
+  const clientRows = await getDb().query.clients.findMany({
     where: and(
       eq(clients.organizationId, organizationId),
       inArray(clients.id, uniqueClientIds),
@@ -152,7 +152,7 @@ export async function assignProgram(
   const created: ProgramAssignmentItem[] = [];
   const skipped: { clientId: string; reason: string }[] = [];
 
-  const activeAssignments = await db.query.programAssignments.findMany({
+  const activeAssignments = await getDb().query.programAssignments.findMany({
     where: and(
       eq(programAssignments.organizationId, organizationId),
       eq(programAssignments.status, "active"),
@@ -192,7 +192,7 @@ export async function assignProgram(
     }
 
     if (input.startMesocycleId) {
-      const mesocycle = await db.query.programMesocycles.findFirst({
+      const mesocycle = await getDb().query.programMesocycles.findFirst({
         where: and(
           eq(programMesocycles.organizationId, organizationId),
           eq(programMesocycles.programId, programId),
@@ -208,7 +208,7 @@ export async function assignProgram(
       }
     }
 
-    const [inserted] = await db
+    const [inserted] = await getDb()
       .insert(programAssignments)
       .values({
         organizationId,
@@ -248,7 +248,7 @@ export async function listClientPrograms(
   organizationId: string,
   clientId: string,
 ): Promise<ProgramAssignmentWithProgram[]> {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -264,7 +264,7 @@ export async function listClientPrograms(
     });
   }
 
-  const rows = await db.query.programAssignments.findMany({
+  const rows = await getDb().query.programAssignments.findMany({
     where: and(
       eq(programAssignments.organizationId, organizationId),
       eq(programAssignments.clientId, clientId),
@@ -288,7 +288,7 @@ export async function getActiveClientProgram(
   organizationId: string,
   clientId: string,
 ): Promise<ProgramAssignmentWithProgram> {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -304,7 +304,7 @@ export async function getActiveClientProgram(
     });
   }
 
-  const row = await db.query.programAssignments.findFirst({
+  const row = await getDb().query.programAssignments.findFirst({
     where: and(
       eq(programAssignments.organizationId, organizationId),
       eq(programAssignments.clientId, clientId),
@@ -347,7 +347,7 @@ export async function getAssignmentSchedule(
     loadScheduleSessionInputs(organizationId, assignment.programId, {
       startMesocycleId: assignment.startMesocycleId,
     }),
-    db.query.assignmentSessionOverrides.findMany({
+    getDb().query.assignmentSessionOverrides.findMany({
       where: eq(assignmentSessionOverrides.assignmentId, assignmentId),
     }),
   ]);
@@ -388,7 +388,7 @@ export async function patchSessionSchedule(
     });
   }
 
-  const session = await db.query.programSessions.findFirst({
+  const session = await getDb().query.programSessions.findFirst({
     where: and(
       eq(programSessions.organizationId, organizationId),
       eq(programSessions.id, programSessionId),
@@ -405,7 +405,7 @@ export async function patchSessionSchedule(
     });
   }
 
-  const existing = await db.query.assignmentSessionOverrides.findFirst({
+  const existing = await getDb().query.assignmentSessionOverrides.findFirst({
     where: and(
       eq(assignmentSessionOverrides.assignmentId, assignmentId),
       eq(assignmentSessionOverrides.programSessionId, programSessionId),
@@ -413,12 +413,12 @@ export async function patchSessionSchedule(
   });
 
   if (existing) {
-    await db
+    await getDb()
       .update(assignmentSessionOverrides)
       .set({ scheduledDate })
       .where(eq(assignmentSessionOverrides.id, existing.id));
   } else {
-    await db.insert(assignmentSessionOverrides).values({
+    await getDb().insert(assignmentSessionOverrides).values({
       organizationId,
       assignmentId,
       programSessionId,

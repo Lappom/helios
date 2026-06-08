@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gte, lte } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { sessionLogs } from "@/lib/db/schema";
 import type { ListSessionLogsQuery } from "@/lib/validators/integrations";
 
@@ -54,12 +54,12 @@ export async function listSessionLogs(
 
   const where = and(...filters);
 
-  const [totalRow] = await db
+  const [totalRow] = await getDb()
     .select({ value: count() })
     .from(sessionLogs)
     .where(where);
 
-  const rows = await db.query.sessionLogs.findMany({
+  const rows = await getDb().query.sessionLogs.findMany({
     where,
     orderBy: [desc(sessionLogs.scheduledDate)],
     limit: query.limit,
@@ -76,7 +76,7 @@ export async function getSessionLog(
   organizationId: string,
   sessionLogId: string,
 ): Promise<PublicSessionLogItem> {
-  const row = await db.query.sessionLogs.findFirst({
+  const row = await getDb().query.sessionLogs.findFirst({
     where: and(
       eq(sessionLogs.id, sessionLogId),
       eq(sessionLogs.organizationId, organizationId),

@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq } from "drizzle-orm";
 import { sleep } from "workflow";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   pathwayEnrollments,
   pathwayStepLogs,
@@ -22,7 +22,7 @@ export async function executePathwayStepStep(
 ): Promise<Record<string, unknown>> {
   "use step";
 
-  const existing = await db.query.pathwayStepLogs.findFirst({
+  const existing = await getDb().query.pathwayStepLogs.findFirst({
     where: and(
       eq(pathwayStepLogs.enrollmentId, input.enrollmentId),
       eq(pathwayStepLogs.stepId, step.id),
@@ -37,7 +37,7 @@ export async function executePathwayStepStep(
 
   const started = Date.now();
 
-  const [pendingLog] = await db
+  const [pendingLog] = await getDb()
     .insert(pathwayStepLogs)
     .values({
       organizationId: input.organizationId,
@@ -49,7 +49,7 @@ export async function executePathwayStepStep(
     .returning();
 
   if (!pendingLog) {
-    const completed = await db.query.pathwayStepLogs.findFirst({
+    const completed = await getDb().query.pathwayStepLogs.findFirst({
       where: and(
         eq(pathwayStepLogs.enrollmentId, input.enrollmentId),
         eq(pathwayStepLogs.stepId, step.id),
@@ -61,7 +61,7 @@ export async function executePathwayStepStep(
     }
   }
 
-  await db
+  await getDb()
     .update(pathwayEnrollments)
     .set({ currentStepIndex: stepIndex })
     .where(eq(pathwayEnrollments.id, input.enrollmentId));
@@ -78,7 +78,7 @@ export async function executePathwayStepStep(
             enrollmentId: input.enrollmentId,
           });
 
-    await db
+    await getDb()
       .update(pathwayStepLogs)
       .set({
         status: "completed",
@@ -96,7 +96,7 @@ export async function executePathwayStepStep(
     return output;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Step failed";
-    await db
+    await getDb()
       .update(pathwayStepLogs)
       .set({
         status: "failed",
@@ -117,7 +117,7 @@ export async function markEnrollmentRunningStep(
   enrollmentId: string,
 ): Promise<void> {
   "use step";
-  await db
+  await getDb()
     .update(pathwayEnrollments)
     .set({ status: "running", startedAt: new Date() })
     .where(eq(pathwayEnrollments.id, enrollmentId));
@@ -127,7 +127,7 @@ export async function markEnrollmentCompletedStep(
   enrollmentId: string,
 ): Promise<void> {
   "use step";
-  await db
+  await getDb()
     .update(pathwayEnrollments)
     .set({
       status: "completed",
@@ -142,7 +142,7 @@ export async function markEnrollmentFailedStep(
   error: string,
 ): Promise<void> {
   "use step";
-  await db
+  await getDb()
     .update(pathwayEnrollments)
     .set({
       status: "failed",

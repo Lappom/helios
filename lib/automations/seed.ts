@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { automationActions, automations } from "@/lib/db/schema";
 
 const ONBOARDING_NAME = "Onboarding client (système)";
@@ -8,7 +8,7 @@ export async function seedSystemAutomations(
   organizationId: string,
   coachClerkUserId: string,
 ): Promise<void> {
-  const existing = await db.query.automations.findFirst({
+  const existing = await getDb().query.automations.findFirst({
     where: and(
       eq(automations.organizationId, organizationId),
       eq(automations.isSystem, true),
@@ -19,7 +19,7 @@ export async function seedSystemAutomations(
 
   if (existing) return;
 
-  const [automation] = await db
+  const [automation] = await getDb()
     .insert(automations)
     .values({
       organizationId,
@@ -34,7 +34,7 @@ export async function seedSystemAutomations(
     })
     .returning();
 
-  await db.insert(automationActions).values([
+  await getDb().insert(automationActions).values([
     {
       organizationId,
       automationId: automation!.id,

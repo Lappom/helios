@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb, runWithDbScope } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { requireRole } from "@/lib/auth/org-context";
 import type { OrgContext } from "@/lib/auth/types";
@@ -11,7 +11,7 @@ export async function getClientIdForUser(
   organizationId: string,
   clerkUserId: string,
 ): Promise<string | null> {
-  const row = await db.query.clients.findFirst({
+  const row = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.clerkUserId, clerkUserId),
@@ -24,9 +24,10 @@ export async function getClientIdForUser(
 
 export async function requireClient(): Promise<ClientContext> {
   const context = await requireRole("client");
-  const clientId = await getClientIdForUser(
-    context.organizationId,
-    context.clerkUserId,
+  const clientId = await runWithDbScope(
+    { organizationId: context.organizationId },
+    () =>
+      getClientIdForUser(context.organizationId, context.clerkUserId),
   );
 
   if (!clientId) {

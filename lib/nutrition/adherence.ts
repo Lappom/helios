@@ -1,5 +1,5 @@
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   mealLogs,
   nutritionAssignments,
@@ -32,7 +32,7 @@ export async function getPlanAdherence(
   planId: string,
   input: AdherenceQueryInput,
 ): Promise<PlanAdherenceReport> {
-  const plan = await db.query.nutritionPlans.findFirst({
+  const plan = await getDb().query.nutritionPlans.findFirst({
     where: and(
       eq(nutritionPlans.organizationId, organizationId),
       eq(nutritionPlans.id, planId),
@@ -58,7 +58,7 @@ export async function getPlanAdherence(
     assignmentFilters.push(eq(nutritionAssignments.clientId, input.clientId));
   }
 
-  const assignments = await db.query.nutritionAssignments.findMany({
+  const assignments = await getDb().query.nutritionAssignments.findMany({
     where: and(...assignmentFilters),
     with: {
       client: true,
@@ -80,7 +80,7 @@ export async function getPlanAdherence(
   const assignmentIds = assignments.map((row) => row.id);
   const dates = enumerateDates(input.start, input.end);
 
-  const logRows = await db.query.mealLogs.findMany({
+  const logRows = await getDb().query.mealLogs.findMany({
     where: and(
       eq(mealLogs.organizationId, organizationId),
       inArray(mealLogs.assignmentId, assignmentIds),

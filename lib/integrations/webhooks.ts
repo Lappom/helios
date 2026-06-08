@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { webhookDeliveries, webhookEndpoints } from "@/lib/db/schema";
 import type {
   CreateWebhookInput,
@@ -99,7 +99,7 @@ export function verifyWebhookSignature(
 export async function listWebhooks(
   organizationId: string,
 ): Promise<WebhookEndpointItem[]> {
-  const rows = await db.query.webhookEndpoints.findMany({
+  const rows = await getDb().query.webhookEndpoints.findMany({
     where: eq(webhookEndpoints.organizationId, organizationId),
     orderBy: [desc(webhookEndpoints.createdAt)],
   });
@@ -111,7 +111,7 @@ export async function getWebhook(
   organizationId: string,
   webhookId: string,
 ): Promise<WebhookEndpointItem & { secret: string }> {
-  const row = await db.query.webhookEndpoints.findFirst({
+  const row = await getDb().query.webhookEndpoints.findFirst({
     where: and(
       eq(webhookEndpoints.id, webhookId),
       eq(webhookEndpoints.organizationId, organizationId),
@@ -139,7 +139,7 @@ export async function createWebhook(
 ): Promise<WebhookEndpointItem & { secret: string }> {
   const secret = generateWebhookSecret();
 
-  const [row] = await db
+  const [row] = await getDb()
     .insert(webhookEndpoints)
     .values({
       organizationId,
@@ -171,7 +171,7 @@ export async function updateWebhook(
   webhookId: string,
   input: UpdateWebhookInput,
 ): Promise<WebhookEndpointItem> {
-  const existing = await db.query.webhookEndpoints.findFirst({
+  const existing = await getDb().query.webhookEndpoints.findFirst({
     where: and(
       eq(webhookEndpoints.id, webhookId),
       eq(webhookEndpoints.organizationId, organizationId),
@@ -187,7 +187,7 @@ export async function updateWebhook(
     });
   }
 
-  const [row] = await db
+  const [row] = await getDb()
     .update(webhookEndpoints)
     .set({
       url: input.url ?? existing.url,
@@ -218,7 +218,7 @@ export async function deleteWebhook(
   organizationId: string,
   webhookId: string,
 ): Promise<void> {
-  const existing = await db.query.webhookEndpoints.findFirst({
+  const existing = await getDb().query.webhookEndpoints.findFirst({
     where: and(
       eq(webhookEndpoints.id, webhookId),
       eq(webhookEndpoints.organizationId, organizationId),
@@ -235,7 +235,7 @@ export async function deleteWebhook(
     });
   }
 
-  await db
+  await getDb()
     .delete(webhookEndpoints)
     .where(eq(webhookEndpoints.id, webhookId));
 }
@@ -245,7 +245,7 @@ export async function listWebhookDeliveries(
   webhookId: string,
   options: { page: number; limit: number; offset: number },
 ): Promise<{ items: WebhookDeliveryItem[]; total: number }> {
-  const endpoint = await db.query.webhookEndpoints.findFirst({
+  const endpoint = await getDb().query.webhookEndpoints.findFirst({
     where: and(
       eq(webhookEndpoints.id, webhookId),
       eq(webhookEndpoints.organizationId, organizationId),
@@ -264,14 +264,14 @@ export async function listWebhookDeliveries(
 
   const where = eq(webhookDeliveries.webhookEndpointId, webhookId);
 
-  const rows = await db.query.webhookDeliveries.findMany({
+  const rows = await getDb().query.webhookDeliveries.findMany({
     where,
     orderBy: [desc(webhookDeliveries.createdAt)],
     limit: options.limit,
     offset: options.offset,
   });
 
-  const allRows = await db.query.webhookDeliveries.findMany({
+  const allRows = await getDb().query.webhookDeliveries.findMany({
     where,
     columns: { id: true },
   });
@@ -294,7 +294,7 @@ export async function listActiveWebhooksForEvent(
   organizationId: string,
   event: WebhookEvent,
 ): Promise<Array<{ id: string; url: string; secret: string }>> {
-  const rows = await db.query.webhookEndpoints.findMany({
+  const rows = await getDb().query.webhookEndpoints.findMany({
     where: and(
       eq(webhookEndpoints.organizationId, organizationId),
       eq(webhookEndpoints.isActive, true),
@@ -316,7 +316,7 @@ export async function createWebhookDelivery(
   event: WebhookEvent,
   payload: Record<string, unknown>,
 ): Promise<string> {
-  const [row] = await db
+  const [row] = await getDb()
     .insert(webhookDeliveries)
     .values({
       organizationId,
@@ -335,7 +335,7 @@ export async function createWebhookDelivery(
 }
 
 export async function getWebhookDeliveryById(deliveryId: string) {
-  return db.query.webhookDeliveries.findFirst({
+  return getDb().query.webhookDeliveries.findFirst({
     where: eq(webhookDeliveries.id, deliveryId),
   });
 }

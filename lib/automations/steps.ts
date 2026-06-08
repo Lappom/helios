@@ -1,7 +1,7 @@
 import "server-only";
 
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   actionLogs,
   automationExecutions,
@@ -16,7 +16,7 @@ export async function executeAutomationActionStep(
 ): Promise<Record<string, unknown>> {
   "use step";
 
-  const existing = await db.query.actionLogs.findFirst({
+  const existing = await getDb().query.actionLogs.findFirst({
     where: and(
       eq(actionLogs.executionId, input.executionId),
       eq(actionLogs.actionId, action.id),
@@ -31,7 +31,7 @@ export async function executeAutomationActionStep(
 
   const started = Date.now();
 
-  const [pendingLog] = await db
+  const [pendingLog] = await getDb()
     .insert(actionLogs)
     .values({
       organizationId: input.organizationId,
@@ -43,7 +43,7 @@ export async function executeAutomationActionStep(
     .returning();
 
   if (!pendingLog) {
-    const completed = await db.query.actionLogs.findFirst({
+    const completed = await getDb().query.actionLogs.findFirst({
       where: and(
         eq(actionLogs.executionId, input.executionId),
         eq(actionLogs.actionId, action.id),
@@ -65,7 +65,7 @@ export async function executeAutomationActionStep(
       executionId: input.executionId,
     });
 
-    await db
+    await getDb()
       .update(actionLogs)
       .set({
         status: "completed",
@@ -83,7 +83,7 @@ export async function executeAutomationActionStep(
     return output;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Action failed";
-    await db
+    await getDb()
       .update(actionLogs)
       .set({
         status: "failed",
@@ -102,7 +102,7 @@ export async function executeAutomationActionStep(
 
 export async function markExecutionRunningStep(executionId: string): Promise<void> {
   "use step";
-  await db
+  await getDb()
     .update(automationExecutions)
     .set({ status: "running", startedAt: new Date() })
     .where(eq(automationExecutions.id, executionId));
@@ -110,7 +110,7 @@ export async function markExecutionRunningStep(executionId: string): Promise<voi
 
 export async function markExecutionCompletedStep(executionId: string): Promise<void> {
   "use step";
-  await db
+  await getDb()
     .update(automationExecutions)
     .set({
       status: "completed",
@@ -125,7 +125,7 @@ export async function markExecutionFailedStep(
   error: string,
 ): Promise<void> {
   "use step";
-  await db
+  await getDb()
     .update(automationExecutions)
     .set({
       status: "failed",
@@ -139,7 +139,7 @@ export async function resolvePlanTierStep(
   organizationId: string,
 ): Promise<import("@/lib/auth/types").PlanTier> {
   "use step";
-  const org = await db.query.organizations.findFirst({
+  const org = await getDb().query.organizations.findFirst({
     where: eq(organizations.id, organizationId),
     columns: { planTier: true },
   });

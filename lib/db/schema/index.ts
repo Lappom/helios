@@ -103,6 +103,7 @@ import {
   pathwayStepLogs,
   pathwaySteps,
 } from "./pathways";
+import { auditLogs } from "./audit";
 
 export * from "./enums";
 export * from "./organization";
@@ -130,6 +131,7 @@ export * from "./questionnaires";
 export * from "./pathways";
 export * from "./integrations";
 export * from "./referrals";
+export * from "./audit";
 
 export const organizationsRelations = relations(
   organizations,
@@ -193,8 +195,16 @@ export const organizationsRelations = relations(
     pathwaySteps: many(pathwaySteps),
     pathwayEnrollments: many(pathwayEnrollments),
     pathwayStepLogs: many(pathwayStepLogs),
+    auditLogs: many(auditLogs),
   }),
 );
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [auditLogs.organizationId],
+    references: [organizations.id],
+  }),
+}));
 
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   organization: one(organizations, {

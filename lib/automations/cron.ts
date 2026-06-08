@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { addDays, format } from "date-fns";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { automations, payments } from "@/lib/db/schema";
 import { dispatchAutomationTrigger } from "./dispatcher";
 
@@ -20,7 +20,7 @@ function cronMatchesNow(cron: string, date: Date): boolean {
 export async function processAutomationSchedules(
   now = new Date(),
 ): Promise<{ triggered: number }> {
-  const rows = await db.query.automations.findMany({
+  const rows = await getDb().query.automations.findMany({
     where: and(
       eq(automations.isActive, true),
       eq(automations.triggerType, "schedule_cron"),
@@ -56,7 +56,7 @@ export async function processSubscriptionRenewals(
   const renewalWindowStart = addDays(now, 7);
   const dayKey = format(now, "yyyy-MM-dd");
 
-  const subscriptionPayments = await db.query.payments.findMany({
+  const subscriptionPayments = await getDb().query.payments.findMany({
     where: eq(payments.type, "subscription"),
     columns: {
       id: true,

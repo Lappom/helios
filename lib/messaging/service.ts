@@ -9,7 +9,7 @@ import {
   ne,
 } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   clients,
   conversationParticipants,
@@ -90,7 +90,7 @@ async function getConversationOrThrow(
   organizationId: string,
   conversationId: string,
 ): Promise<ConversationRow> {
-  const conversation = await db.query.conversations.findFirst({
+  const conversation = await getDb().query.conversations.findFirst({
     where: and(
       eq(conversations.organizationId, organizationId),
       eq(conversations.id, conversationId),
@@ -125,7 +125,7 @@ async function isConversationParticipant(
   conversationId: string,
   clerkUserId: string,
 ): Promise<boolean> {
-  const participant = await db.query.conversationParticipants.findFirst({
+  const participant = await getDb().query.conversationParticipants.findFirst({
     where: and(
       eq(conversationParticipants.organizationId, organizationId),
       eq(conversationParticipants.conversationId, conversationId),
@@ -183,7 +183,7 @@ async function ensureParticipant(
   clerkUserId: string,
   role: "coach" | "client",
 ) {
-  const existing = await db.query.conversationParticipants.findFirst({
+  const existing = await getDb().query.conversationParticipants.findFirst({
     where: and(
       eq(conversationParticipants.conversationId, conversationId),
       eq(conversationParticipants.clerkUserId, clerkUserId),
@@ -195,7 +195,7 @@ async function ensureParticipant(
     return;
   }
 
-  await db.insert(conversationParticipants).values({
+  await getDb().insert(conversationParticipants).values({
     organizationId,
     conversationId,
     clerkUserId,
@@ -220,7 +220,7 @@ async function getUnreadCount(
     conditions.push(gt(messages.createdAt, lastReadAt));
   }
 
-  const [result] = await db
+  const [result] = await getDb()
     .select({ value: count() })
     .from(messages)
     .where(and(...conditions));
@@ -229,7 +229,7 @@ async function getUnreadCount(
 }
 
 async function getParticipantCount(conversationId: string): Promise<number> {
-  const [result] = await db
+  const [result] = await getDb()
     .select({ value: count() })
     .from(conversationParticipants)
     .where(eq(conversationParticipants.conversationId, conversationId));
@@ -246,7 +246,7 @@ async function getClientParticipantLastRead(
     return null;
   }
 
-  const participant = await db.query.conversationParticipants.findFirst({
+  const participant = await getDb().query.conversationParticipants.findFirst({
     where: and(
       eq(conversationParticipants.organizationId, organizationId),
       eq(conversationParticipants.conversationId, conversationId),
@@ -263,7 +263,7 @@ async function getCoachParticipantsLastRead(
   organizationId: string,
   conversationId: string,
 ): Promise<Date | null> {
-  const participants = await db.query.conversationParticipants.findMany({
+  const participants = await getDb().query.conversationParticipants.findMany({
     where: and(
       eq(conversationParticipants.organizationId, organizationId),
       eq(conversationParticipants.conversationId, conversationId),
@@ -287,7 +287,7 @@ async function mapConversationListItem(
   row: ConversationRow,
   viewerClerkUserId: string,
 ): Promise<ConversationListItem> {
-  const participant = await db.query.conversationParticipants.findFirst({
+  const participant = await getDb().query.conversationParticipants.findFirst({
     where: and(
       eq(conversationParticipants.conversationId, row.id),
       eq(conversationParticipants.clerkUserId, viewerClerkUserId),
@@ -367,7 +367,7 @@ async function resolveDefaultCoachClerkUserId(
   organizationId: string,
   fallbackClerkUserId: string,
 ): Promise<string> {
-  const member = await db.query.teamMembers.findFirst({
+  const member = await getDb().query.teamMembers.findFirst({
     where: and(
       eq(teamMembers.organizationId, organizationId),
       inArray(teamMembers.role, ["owner", "admin", "coach"]),
@@ -384,7 +384,7 @@ async function resolveClientsForGroup(
 ) {
   const uniqueIds = [...new Set(clientIds)];
 
-  const rows = await db.query.clients.findMany({
+  const rows = await getDb().query.clients.findMany({
     where: and(
       eq(clients.organizationId, organizationId),
       inArray(clients.id, uniqueIds),
@@ -433,7 +433,7 @@ async function buildSenderDisplayNameMap(
     return map;
   }
 
-  const clientRows = await db.query.clients.findMany({
+  const clientRows = await getDb().query.clients.findMany({
     where: and(
       eq(clients.organizationId, organizationId),
       inArray(clients.clerkUserId, uniqueIds),
@@ -451,7 +451,7 @@ async function buildSenderDisplayNameMap(
     }
   }
 
-  const coachRows = await db.query.teamMembers.findMany({
+  const coachRows = await getDb().query.teamMembers.findMany({
     where: and(
       eq(teamMembers.organizationId, organizationId),
       inArray(teamMembers.clerkUserId, uniqueIds),
@@ -463,7 +463,7 @@ async function buildSenderDisplayNameMap(
     map.set(coach.clerkUserId, "Coach");
   }
 
-  const participants = await db.query.conversationParticipants.findMany({
+  const participants = await getDb().query.conversationParticipants.findMany({
     where: and(
       eq(conversationParticipants.organizationId, organizationId),
       eq(conversationParticipants.conversationId, conversationId),
@@ -489,7 +489,7 @@ export async function findOrCreateDirectConversation(
   clientId: string,
   coachClerkUserId: string,
 ): Promise<ConversationListItem> {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -512,7 +512,7 @@ export async function findOrCreateDirectConversation(
     });
   }
 
-  const existing = await db.query.conversations.findFirst({
+  const existing = await getDb().query.conversations.findFirst({
     where: and(
       eq(conversations.organizationId, organizationId),
       eq(conversations.clientId, clientId),
@@ -541,7 +541,7 @@ export async function findOrCreateDirectConversation(
     return mapConversationListItem(existing, coachClerkUserId);
   }
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(conversations)
     .values({
       organizationId,
@@ -579,7 +579,7 @@ export async function createGroupConversation(
     input.clientIds,
   );
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(conversations)
     .values({
       organizationId,
@@ -692,7 +692,7 @@ export async function removeGroupParticipant(
     });
   }
 
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -709,7 +709,7 @@ export async function removeGroupParticipant(
     });
   }
 
-  await db
+  await getDb()
     .delete(conversationParticipants)
     .where(
       and(
@@ -741,7 +741,7 @@ export async function getGroupParticipants(
     });
   }
 
-  const participants = await db.query.conversationParticipants.findMany({
+  const participants = await getDb().query.conversationParticipants.findMany({
     where: and(
       eq(conversationParticipants.organizationId, organizationId),
       eq(conversationParticipants.conversationId, conversationId),
@@ -758,7 +758,7 @@ export async function getGroupParticipants(
   }
 
   const clerkUserIds = participants.map((p) => p.clerkUserId);
-  const clientRows = await db.query.clients.findMany({
+  const clientRows = await getDb().query.clients.findMany({
     where: and(
       eq(clients.organizationId, organizationId),
       inArray(clients.clerkUserId, clerkUserIds),
@@ -803,12 +803,12 @@ export async function listConversationsForCoach(
 ): Promise<{ items: ConversationListItem[]; total: number }> {
   const where = eq(conversations.organizationId, organizationId);
 
-  const [totalRow] = await db
+  const [totalRow] = await getDb()
     .select({ value: count() })
     .from(conversations)
     .where(where);
 
-  const rows = await db.query.conversations.findMany({
+  const rows = await getDb().query.conversations.findMany({
     where,
     with: {
       client: {
@@ -845,7 +845,7 @@ export async function listConversationsForClient(
   );
 
   const groupParticipantRows =
-    await db.query.conversationParticipants.findMany({
+    await getDb().query.conversationParticipants.findMany({
       where: and(
         eq(conversationParticipants.organizationId, organizationId),
         eq(conversationParticipants.clerkUserId, clientClerkUserId),
@@ -860,7 +860,7 @@ export async function listConversationsForClient(
 
   const groupRows =
     groupConversationIds.length > 0
-      ? await db.query.conversations.findMany({
+      ? await getDb().query.conversations.findMany({
           where: and(
             eq(conversations.organizationId, organizationId),
             eq(conversations.type, "group"),
@@ -893,7 +893,7 @@ export async function getClientConversation(
   clientId: string,
   clientClerkUserId: string,
 ): Promise<ConversationListItem | null> {
-  const existing = await db.query.conversations.findFirst({
+  const existing = await getDb().query.conversations.findFirst({
     where: and(
       eq(conversations.organizationId, organizationId),
       eq(conversations.clientId, clientId),
@@ -961,12 +961,12 @@ export async function listMessages(
     isNull(messages.deletedAt),
   );
 
-  const [totalRow] = await db
+  const [totalRow] = await getDb()
     .select({ value: count() })
     .from(messages)
     .where(where);
 
-  const rows = await db.query.messages.findMany({
+  const rows = await getDb().query.messages.findMany({
     where,
     orderBy: [desc(messages.createdAt)],
     limit: options.limit,
@@ -1029,7 +1029,7 @@ export async function sendMessage(
   const now = new Date();
   const preview = buildPreview(input.type, input.content ?? null);
 
-  const [message] = await db
+  const [message] = await getDb()
     .insert(messages)
     .values({
       organizationId,
@@ -1044,7 +1044,7 @@ export async function sendMessage(
     })
     .returning();
 
-  await db
+  await getDb()
     .update(conversations)
     .set({
       lastMessageAt: now,
@@ -1099,7 +1099,7 @@ export async function markConversationRead(
   let readUntil = new Date();
 
   if (messageId) {
-    const target = await db.query.messages.findFirst({
+    const target = await getDb().query.messages.findFirst({
       where: and(
         eq(messages.organizationId, organizationId),
         eq(messages.conversationId, conversationId),
@@ -1121,7 +1121,7 @@ export async function markConversationRead(
     readUntil = target.createdAt;
   }
 
-  await db
+  await getDb()
     .update(conversationParticipants)
     .set({ lastReadAt: readUntil })
     .where(
@@ -1148,7 +1148,7 @@ export async function getMessageForMedia(
 ) {
   await assertConversationAccess(organizationId, conversationId, actor);
 
-  const message = await db.query.messages.findFirst({
+  const message = await getDb().query.messages.findFirst({
     where: and(
       eq(messages.organizationId, organizationId),
       eq(messages.conversationId, conversationId),
@@ -1176,7 +1176,7 @@ export async function listAccessibleConversationIds(
   if (actor.role === "client") {
     const ids: string[] = [];
 
-    const direct = await db.query.conversations.findFirst({
+    const direct = await getDb().query.conversations.findFirst({
       where: and(
         eq(conversations.organizationId, organizationId),
         eq(conversations.clientId, actor.clientId),
@@ -1189,7 +1189,7 @@ export async function listAccessibleConversationIds(
       ids.push(direct.id);
     }
 
-    const groupParticipants = await db.query.conversationParticipants.findMany({
+    const groupParticipants = await getDb().query.conversationParticipants.findMany({
       where: and(
         eq(conversationParticipants.organizationId, organizationId),
         eq(conversationParticipants.clerkUserId, actor.clerkUserId),
@@ -1206,7 +1206,7 @@ export async function listAccessibleConversationIds(
     return ids;
   }
 
-  const rows = await db.query.conversations.findMany({
+  const rows = await getDb().query.conversations.findMany({
     where: eq(conversations.organizationId, organizationId),
     columns: { id: true },
   });

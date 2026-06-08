@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb, runWithDbScope } from "@/lib/db";
 import { organizations, subscriptions } from "@/lib/db/schema";
 
 export async function TrialBanner() {
@@ -11,22 +11,30 @@ export async function TrialBanner() {
     return null;
   }
 
-  const org = await db.query.organizations.findFirst({
-    where: eq(organizations.clerkOrgId, orgId),
-    columns: {
-      id: true,
-      trialEndsAt: true,
-    },
+  const { org, sub } = await runWithDbScope({ bypass: true }, async () => {
+    const organization = await getDb().query.organizations.findFirst({
+      where: eq(organizations.clerkOrgId, orgId),
+      columns: {
+        id: true,
+        trialEndsAt: true,
+      },
+    });
+
+    if (!organization?.trialEndsAt) {
+      return { org: null, sub: null };
+    }
+
+    const subscription = await getDb().query.subscriptions.findFirst({
+      where: eq(subscriptions.organizationId, organization.id),
+      columns: { status: true },
+    });
+
+    return { org: organization, sub: subscription };
   });
 
   if (!org?.trialEndsAt) {
     return null;
   }
-
-  const sub = await db.query.subscriptions.findFirst({
-    where: eq(subscriptions.organizationId, org.id),
-    columns: { status: true },
-  });
 
   const trialExpired = org.trialEndsAt < new Date();
   const hasActiveSubscription = sub?.status === "ACTIVE";

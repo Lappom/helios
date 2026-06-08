@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients, notificationTemplates } from "@/lib/db/schema";
 import { matchesCronExpression } from "./cron-match";
 import { getOrganizationPlanTier } from "./cron";
@@ -8,7 +8,7 @@ import { dispatchNotification } from "./dispatch";
 export async function processScheduledNotificationTemplates(
   now: Date = new Date(),
 ): Promise<{ processed: number; skipped: number }> {
-  const templates = await db.query.notificationTemplates.findMany({
+  const templates = await getDb().query.notificationTemplates.findMany({
     where: and(
       eq(notificationTemplates.trigger, "scheduled"),
       eq(notificationTemplates.isActive, true),
@@ -25,7 +25,7 @@ export async function processScheduledNotificationTemplates(
     }
 
     const planTier = await getOrganizationPlanTier(template.organizationId);
-    const activeClients = await db.query.clients.findMany({
+    const activeClients = await getDb().query.clients.findMany({
       where: and(
         eq(clients.organizationId, template.organizationId),
         eq(clients.status, "ACTIVE"),

@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { apiKeys } from "@/lib/db/schema";
 import type { CreateApiKeyInput } from "@/lib/validators/integrations";
 
@@ -57,7 +57,7 @@ function mapListItem(row: typeof apiKeys.$inferSelect): ApiKeyListItem {
 export async function listApiKeys(
   organizationId: string,
 ): Promise<ApiKeyListItem[]> {
-  const rows = await db.query.apiKeys.findMany({
+  const rows = await getDb().query.apiKeys.findMany({
     where: eq(apiKeys.organizationId, organizationId),
     orderBy: [desc(apiKeys.createdAt)],
   });
@@ -74,7 +74,7 @@ export async function createApiKey(
   const secret = `${API_KEY_PREFIX}${secretBody}`;
   const keyHash = hashApiKey(secret);
 
-  const [row] = await db
+  const [row] = await getDb()
     .insert(apiKeys)
     .values({
       organizationId,
@@ -104,7 +104,7 @@ export async function revokeApiKey(
   organizationId: string,
   apiKeyId: string,
 ): Promise<void> {
-  const row = await db.query.apiKeys.findFirst({
+  const row = await getDb().query.apiKeys.findFirst({
     where: and(
       eq(apiKeys.id, apiKeyId),
       eq(apiKeys.organizationId, organizationId),
@@ -120,7 +120,7 @@ export async function revokeApiKey(
     });
   }
 
-  await db
+  await getDb()
     .update(apiKeys)
     .set({ isActive: false, updatedAt: new Date() })
     .where(eq(apiKeys.id, apiKeyId));
@@ -138,7 +138,7 @@ export async function verifyApiKey(
 
   const keyHash = hashApiKey(bearerToken);
 
-  const row = await db.query.apiKeys.findFirst({
+  const row = await getDb().query.apiKeys.findFirst({
     where: and(eq(apiKeys.keyHash, keyHash), eq(apiKeys.isActive, true)),
     columns: {
       id: true,
@@ -150,7 +150,7 @@ export async function verifyApiKey(
     return null;
   }
 
-  await db
+  await getDb()
     .update(apiKeys)
     .set({ lastUsedAt: new Date(), updatedAt: new Date() })
     .where(eq(apiKeys.id, row.id));

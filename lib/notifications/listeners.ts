@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { clerkClient } from "@clerk/nextjs/server";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   clients,
   conversationParticipants,
@@ -52,7 +52,7 @@ async function dispatchEventNotification(
 async function getCoachRecipientEmails(
   organizationId: string,
 ): Promise<{ email: string; clerkUserId: string }[]> {
-  const members = await db.query.teamMembers.findMany({
+  const members = await getDb().query.teamMembers.findMany({
     where: and(
       eq(teamMembers.organizationId, organizationId),
       inArray(teamMembers.role, ["owner", "admin", "coach"]),
@@ -132,14 +132,14 @@ export async function handleHeliosNotificationEvent<
     }
     case "program.published": {
       const programPayload = payload as HeliosEventPayload["program.published"];
-      const client = await db.query.clients.findFirst({
+      const client = await getDb().query.clients.findFirst({
         where: and(
           eq(clients.organizationId, programPayload.organizationId),
           eq(clients.id, programPayload.clientId),
         ),
         columns: { id: true, email: true },
       });
-      const program = await db.query.programs.findFirst({
+      const program = await getDb().query.programs.findFirst({
         where: and(
           eq(programs.organizationId, programPayload.organizationId),
           eq(programs.id, programPayload.programId),
@@ -168,7 +168,7 @@ export async function handleHeliosNotificationEvent<
       const idempotencyKey = `message.new:${messagePayload.messageId}`;
 
       if (messagePayload.conversationType === "group") {
-        const participants = await db.query.conversationParticipants.findMany({
+        const participants = await getDb().query.conversationParticipants.findMany({
           where: and(
             eq(
               conversationParticipants.organizationId,
@@ -191,7 +191,7 @@ export async function handleHeliosNotificationEvent<
           return;
         }
 
-        const recipientClients = await db.query.clients.findMany({
+        const recipientClients = await getDb().query.clients.findMany({
           where: and(
             eq(clients.organizationId, messagePayload.organizationId),
             inArray(clients.clerkUserId, recipientClerkIds),
@@ -228,7 +228,7 @@ export async function handleHeliosNotificationEvent<
         return;
       }
 
-      const client = await db.query.clients.findFirst({
+      const client = await getDb().query.clients.findFirst({
         where: and(
           eq(clients.organizationId, messagePayload.organizationId),
           eq(clients.id, messagePayload.clientId),
@@ -294,7 +294,7 @@ export async function handleHeliosNotificationEvent<
     }
     case "drive.file.shared": {
       const drivePayload = payload as DriveFileSharedPayload;
-      const client = await db.query.clients.findFirst({
+      const client = await getDb().query.clients.findFirst({
         where: and(
           eq(clients.organizationId, drivePayload.organizationId),
           eq(clients.id, drivePayload.clientId),

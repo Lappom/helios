@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm";
 import type { PlanTier } from "@/lib/auth/types";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { createId } from "@/lib/db/id";
 import {
   clients,
@@ -54,7 +54,7 @@ import type {
 } from "@/lib/validators/videos";
 
 async function getCategoryOrThrow(organizationId: string, categoryId: string) {
-  const category = await db.query.videoCategories.findFirst({
+  const category = await getDb().query.videoCategories.findFirst({
     where: and(
       eq(videoCategories.id, categoryId),
       eq(videoCategories.organizationId, organizationId),
@@ -74,7 +74,7 @@ async function getCategoryOrThrow(organizationId: string, categoryId: string) {
 }
 
 async function getVideoOrThrow(organizationId: string, videoId: string) {
-  const video = await db.query.videos.findFirst({
+  const video = await getDb().query.videos.findFirst({
     where: and(
       eq(videos.id, videoId),
       eq(videos.organizationId, organizationId),
@@ -94,7 +94,7 @@ async function getVideoOrThrow(organizationId: string, videoId: string) {
 }
 
 async function getClientOrThrow(organizationId: string, clientId: string) {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.id, clientId),
       eq(clients.organizationId, organizationId),
@@ -134,7 +134,7 @@ async function validateClientIds(
     return;
   }
 
-  const rows = await db.query.clients.findMany({
+  const rows = await getDb().query.clients.findMany({
     where: and(
       eq(clients.organizationId, organizationId),
       inArray(clients.id, clientIds),
@@ -167,7 +167,7 @@ function resolveThumbnailUrl(
 }
 
 async function countVideoAccess(videoId: string): Promise<number> {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ total: count() })
     .from(videoAccess)
     .where(eq(videoAccess.videoId, videoId));
@@ -204,13 +204,13 @@ async function replaceVideoAccess(
   videoId: string,
   clientIds: string[],
 ) {
-  await db.delete(videoAccess).where(eq(videoAccess.videoId, videoId));
+  await getDb().delete(videoAccess).where(eq(videoAccess.videoId, videoId));
 
   if (clientIds.length === 0) {
     return;
   }
 
-  await db.insert(videoAccess).values(
+  await getDb().insert(videoAccess).values(
     clientIds.map((clientId) => ({
       id: createId(),
       organizationId,
@@ -223,12 +223,12 @@ async function replaceVideoAccess(
 export async function listCategories(
   organizationId: string,
 ): Promise<VideoCategoryItem[]> {
-  const categories = await db.query.videoCategories.findMany({
+  const categories = await getDb().query.videoCategories.findMany({
     where: eq(videoCategories.organizationId, organizationId),
     orderBy: [asc(videoCategories.sortOrder), asc(videoCategories.name)],
   });
 
-  const counts = await db
+  const counts = await getDb()
     .select({
       categoryId: videos.categoryId,
       total: count(),
@@ -255,12 +255,12 @@ export async function createCategory(
   organizationId: string,
   input: CreateCategoryInput,
 ): Promise<VideoCategoryItem> {
-  const [maxOrder] = await db
+  const [maxOrder] = await getDb()
     .select({ max: sql<number>`coalesce(max(${videoCategories.sortOrder}), -1)` })
     .from(videoCategories)
     .where(eq(videoCategories.organizationId, organizationId));
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(videoCategories)
     .values({
       id: createId(),
@@ -287,7 +287,7 @@ export async function updateCategory(
 ): Promise<VideoCategoryItem> {
   await getCategoryOrThrow(organizationId, categoryId);
 
-  const [updated] = await db
+  const [updated] = await getDb()
     .update(videoCategories)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
@@ -301,7 +301,7 @@ export async function updateCategory(
     )
     .returning();
 
-  const [videoCountRow] = await db
+  const [videoCountRow] = await getDb()
     .select({ total: count() })
     .from(videos)
     .where(
@@ -327,7 +327,7 @@ export async function deleteCategory(
 ): Promise<void> {
   await getCategoryOrThrow(organizationId, categoryId);
 
-  await db
+  await getDb()
     .update(videos)
     .set({ categoryId: null })
     .where(
@@ -337,7 +337,7 @@ export async function deleteCategory(
       ),
     );
 
-  await db
+  await getDb()
     .delete(videoCategories)
     .where(
       and(
@@ -351,7 +351,7 @@ export async function reorderCategories(
   organizationId: string,
   input: ReorderCategoriesInput,
 ): Promise<VideoCategoryItem[]> {
-  const existing = await db.query.videoCategories.findMany({
+  const existing = await getDb().query.videoCategories.findMany({
     where: eq(videoCategories.organizationId, organizationId),
     columns: { id: true },
   });
@@ -371,7 +371,7 @@ export async function reorderCategories(
 
   await Promise.all(
     input.categoryIds.map((categoryId, index) =>
-      db
+      getDb()
         .update(videoCategories)
         .set({ sortOrder: index })
         .where(
@@ -405,8 +405,8 @@ export async function listVideos(
 
   const where = and(...conditions);
 
-  const [totalRow] = await db.select({ total: count() }).from(videos).where(where);
-  const rows = await db.query.videos.findMany({
+  const [totalRow] = await getDb().select({ total: count() }).from(videos).where(where);
+  const rows = await getDb().query.videos.findMany({
     where,
     orderBy: [desc(videos.createdAt)],
     limit: options.limit,
@@ -451,7 +451,7 @@ export async function createYoutubeVideo(
   }
 
   const videoId = createId();
-  const [created] = await db
+  const [created] = await getDb()
     .insert(videos)
     .values({
       id: videoId,
@@ -479,7 +479,7 @@ export async function createYoutubeVideo(
   });
 
   const category = categoryId
-    ? await db.query.videoCategories.findFirst({
+    ? await getDb().query.videoCategories.findFirst({
         where: eq(videoCategories.id, categoryId),
         columns: { name: true },
       })
@@ -514,7 +514,7 @@ export async function uploadVideo(
     thumbnailPathname = thumb.pathname;
   }
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(videos)
     .values({
       id: videoId,
@@ -545,7 +545,7 @@ export async function uploadVideo(
   });
 
   const category = categoryId
-    ? await db.query.videoCategories.findFirst({
+    ? await getDb().query.videoCategories.findFirst({
         where: eq(videoCategories.id, categoryId),
         columns: { name: true },
       })
@@ -565,7 +565,7 @@ export async function updateVideo(
       ? await validateCategoryId(organizationId, input.categoryId)
       : undefined;
 
-  const [updated] = await db
+  const [updated] = await getDb()
     .update(videos)
     .set({
       ...(input.title !== undefined ? { title: input.title } : {}),
@@ -587,11 +587,11 @@ export async function updateVideo(
     input.visibility === "all_clients" &&
     existing.visibility === "selected"
   ) {
-    await db.delete(videoAccess).where(eq(videoAccess.videoId, videoId));
+    await getDb().delete(videoAccess).where(eq(videoAccess.videoId, videoId));
   }
 
   const category = updated.categoryId
-    ? await db.query.videoCategories.findFirst({
+    ? await getDb().query.videoCategories.findFirst({
         where: eq(videoCategories.id, updated.categoryId),
         columns: { name: true },
       })
@@ -613,7 +613,7 @@ export async function deleteVideo(
     await del(video.thumbnailPathname);
   }
 
-  await db
+  await getDb()
     .delete(videos)
     .where(
       and(eq(videos.id, videoId), eq(videos.organizationId, organizationId)),
@@ -648,7 +648,7 @@ export async function listVideoAccess(
 ): Promise<VideoAccessItem[]> {
   await getVideoOrThrow(organizationId, videoId);
 
-  const rows = await db.query.videoAccess.findMany({
+  const rows = await getDb().query.videoAccess.findMany({
     where: and(
       eq(videoAccess.organizationId, organizationId),
       eq(videoAccess.videoId, videoId),
@@ -684,7 +684,7 @@ export async function assertVideoAccess(
     return video;
   }
 
-  const access = await db.query.videoAccess.findFirst({
+  const access = await getDb().query.videoAccess.findFirst({
     where: and(
       eq(videoAccess.videoId, videoId),
       eq(videoAccess.clientId, actor.clientId),
@@ -710,7 +710,7 @@ export async function listClientVideoFeed(
 ): Promise<VideoFeedCategory[]> {
   await getClientOrThrow(organizationId, clientId);
 
-  const accessibleVideos = await db.query.videos.findMany({
+  const accessibleVideos = await getDb().query.videos.findMany({
     where: and(
       eq(videos.organizationId, organizationId),
       or(
@@ -731,7 +731,7 @@ export async function listClientVideoFeed(
     },
   });
 
-  const categories = await db.query.videoCategories.findMany({
+  const categories = await getDb().query.videoCategories.findMany({
     where: eq(videoCategories.organizationId, organizationId),
     orderBy: [asc(videoCategories.sortOrder), asc(videoCategories.name)],
   });

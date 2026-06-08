@@ -1,7 +1,7 @@
 import "server-only";
 
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { webhookDeliveries, webhookEndpoints } from "@/lib/db/schema";
 import { logger } from "@/lib/api/logger";
 import { signWebhookPayload } from "./webhooks";
@@ -9,7 +9,7 @@ import { signWebhookPayload } from "./webhooks";
 const RETRY_DELAYS_MS = [60_000, 300_000, 1_800_000];
 
 export async function deliverWebhook(deliveryId: string): Promise<void> {
-  const delivery = await db.query.webhookDeliveries.findFirst({
+  const delivery = await getDb().query.webhookDeliveries.findFirst({
     where: eq(webhookDeliveries.id, deliveryId),
   });
 
@@ -17,12 +17,12 @@ export async function deliverWebhook(deliveryId: string): Promise<void> {
     return;
   }
 
-  const endpoint = await db.query.webhookEndpoints.findFirst({
+  const endpoint = await getDb().query.webhookEndpoints.findFirst({
     where: eq(webhookEndpoints.id, delivery.webhookEndpointId),
   });
 
   if (!endpoint || !endpoint.isActive) {
-    await db
+    await getDb()
       .update(webhookDeliveries)
       .set({
         status: "failed",
@@ -77,7 +77,7 @@ export async function deliverWebhook(deliveryId: string): Promise<void> {
   const attemptCount = delivery.attemptCount + 1;
 
   if (success) {
-    await db
+    await getDb()
       .update(webhookDeliveries)
       .set({
         status: "success",
@@ -96,7 +96,7 @@ export async function deliverWebhook(deliveryId: string): Promise<void> {
 
   if (retryDelay !== undefined) {
     const nextRetryAt = new Date(Date.now() + retryDelay);
-    await db
+    await getDb()
       .update(webhookDeliveries)
       .set({
         status: "pending",
@@ -110,7 +110,7 @@ export async function deliverWebhook(deliveryId: string): Promise<void> {
     return;
   }
 
-  await db
+  await getDb()
     .update(webhookDeliveries)
     .set({
       status: "failed",
@@ -125,7 +125,7 @@ export async function deliverWebhook(deliveryId: string): Promise<void> {
 
 export async function processPendingWebhookRetries(): Promise<number> {
   const now = new Date();
-  const pending = await db.query.webhookDeliveries.findMany({
+  const pending = await getDb().query.webhookDeliveries.findMany({
     where: eq(webhookDeliveries.status, "pending"),
     limit: 50,
   });

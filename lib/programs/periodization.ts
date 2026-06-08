@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   blockExerciseAlternatives,
   blockExercises,
@@ -67,7 +67,7 @@ async function getNextSortOrder(
     | typeof programMicrocycles.macrocycleId,
   parentId: string,
 ) {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ max: sql<number>`coalesce(max(${table.sortOrder}), -1)` })
     .from(table)
     .where(eq(parentColumn, parentId));
@@ -83,7 +83,7 @@ async function reorderCycleByIds(
   parentFilter: ReturnType<typeof eq>,
   ids: string[],
 ) {
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     for (let index = 0; index < ids.length; index++) {
       await tx
         .update(table)
@@ -100,7 +100,7 @@ async function reorderCycleByIds(
 }
 
 async function getNextMicrocycleWeekSortOrder(microcycleId: string) {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ max: sql<number>`coalesce(max(${programWeeks.sortOrder}), -1)` })
     .from(programWeeks)
     .where(eq(programWeeks.microcycleId, microcycleId));
@@ -121,7 +121,7 @@ export async function createMesocycle(
     programId,
   );
 
-  const [mesocycle] = await db
+  const [mesocycle] = await getDb()
     .insert(programMesocycles)
     .values({
       organizationId,
@@ -134,7 +134,7 @@ export async function createMesocycle(
     })
     .returning({ id: programMesocycles.id });
 
-  const [macrocycle] = await db
+  const [macrocycle] = await getDb()
     .insert(programMacrocycles)
     .values({
       organizationId,
@@ -144,7 +144,7 @@ export async function createMesocycle(
     })
     .returning({ id: programMacrocycles.id });
 
-  await db.insert(programMicrocycles).values({
+  await getDb().insert(programMicrocycles).values({
     organizationId,
     macrocycleId: macrocycle!.id,
     sortOrder: 0,
@@ -163,7 +163,7 @@ export async function patchMesocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const updated = await db
+  const updated = await getDb()
     .update(programMesocycles)
     .set(input)
     .where(
@@ -190,7 +190,7 @@ export async function deleteMesocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const mesocycles = await db.query.programMesocycles.findMany({
+  const mesocycles = await getDb().query.programMesocycles.findMany({
     where: and(
       eq(programMesocycles.organizationId, organizationId),
       eq(programMesocycles.programId, programId),
@@ -206,7 +206,7 @@ export async function deleteMesocycle(
     });
   }
 
-  const deleted = await db
+  const deleted = await getDb()
     .delete(programMesocycles)
     .where(
       and(
@@ -251,7 +251,7 @@ export async function createMacrocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const mesocycle = await db.query.programMesocycles.findFirst({
+  const mesocycle = await getDb().query.programMesocycles.findFirst({
     where: and(
       eq(programMesocycles.organizationId, organizationId),
       eq(programMesocycles.programId, programId),
@@ -269,7 +269,7 @@ export async function createMacrocycle(
     mesocycleId,
   );
 
-  const [macrocycle] = await db
+  const [macrocycle] = await getDb()
     .insert(programMacrocycles)
     .values({
       organizationId,
@@ -282,7 +282,7 @@ export async function createMacrocycle(
     })
     .returning({ id: programMacrocycles.id });
 
-  await db.insert(programMicrocycles).values({
+  await getDb().insert(programMicrocycles).values({
     organizationId,
     macrocycleId: macrocycle!.id,
     sortOrder: 0,
@@ -301,7 +301,7 @@ export async function patchMacrocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const macrocycle = await db.query.programMacrocycles.findFirst({
+  const macrocycle = await getDb().query.programMacrocycles.findFirst({
     where: and(
       eq(programMacrocycles.organizationId, organizationId),
       eq(programMacrocycles.id, macrocycleId),
@@ -313,7 +313,7 @@ export async function patchMacrocycle(
     throw problem({ type: "not-found", title: "Macrocycle not found", status: 404 });
   }
 
-  await db
+  await getDb()
     .update(programMacrocycles)
     .set(input)
     .where(eq(programMacrocycles.id, macrocycleId));
@@ -329,7 +329,7 @@ export async function deleteMacrocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const macrocycle = await db.query.programMacrocycles.findFirst({
+  const macrocycle = await getDb().query.programMacrocycles.findFirst({
     where: and(
       eq(programMacrocycles.organizationId, organizationId),
       eq(programMacrocycles.id, macrocycleId),
@@ -341,7 +341,7 @@ export async function deleteMacrocycle(
     throw problem({ type: "not-found", title: "Macrocycle not found", status: 404 });
   }
 
-  const siblings = await db.query.programMacrocycles.findMany({
+  const siblings = await getDb().query.programMacrocycles.findMany({
     where: eq(programMacrocycles.mesocycleId, macrocycle.mesocycleId),
   });
 
@@ -354,7 +354,7 @@ export async function deleteMacrocycle(
     });
   }
 
-  await db.delete(programMacrocycles).where(eq(programMacrocycles.id, macrocycleId));
+  await getDb().delete(programMacrocycles).where(eq(programMacrocycles.id, macrocycleId));
   return getProgramTree(organizationId, programId);
 }
 
@@ -386,7 +386,7 @@ export async function createMicrocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const macrocycle = await db.query.programMacrocycles.findFirst({
+  const macrocycle = await getDb().query.programMacrocycles.findFirst({
     where: and(
       eq(programMacrocycles.organizationId, organizationId),
       eq(programMacrocycles.id, macrocycleId),
@@ -404,7 +404,7 @@ export async function createMicrocycle(
     macrocycleId,
   );
 
-  await db.insert(programMicrocycles).values({
+  await getDb().insert(programMicrocycles).values({
     organizationId,
     macrocycleId,
     sortOrder,
@@ -426,7 +426,7 @@ export async function patchMicrocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const microcycle = await db.query.programMicrocycles.findFirst({
+  const microcycle = await getDb().query.programMicrocycles.findFirst({
     where: and(
       eq(programMicrocycles.organizationId, organizationId),
       eq(programMicrocycles.id, microcycleId),
@@ -438,7 +438,7 @@ export async function patchMicrocycle(
     throw problem({ type: "not-found", title: "Microcycle not found", status: 404 });
   }
 
-  await db
+  await getDb()
     .update(programMicrocycles)
     .set(input)
     .where(eq(programMicrocycles.id, microcycleId));
@@ -454,7 +454,7 @@ export async function deleteMicrocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const microcycle = await db.query.programMicrocycles.findFirst({
+  const microcycle = await getDb().query.programMicrocycles.findFirst({
     where: and(
       eq(programMicrocycles.organizationId, organizationId),
       eq(programMicrocycles.id, microcycleId),
@@ -466,7 +466,7 @@ export async function deleteMicrocycle(
     throw problem({ type: "not-found", title: "Microcycle not found", status: 404 });
   }
 
-  const siblings = await db.query.programMicrocycles.findMany({
+  const siblings = await getDb().query.programMicrocycles.findMany({
     where: eq(programMicrocycles.macrocycleId, microcycle.macrocycleId),
   });
 
@@ -479,7 +479,7 @@ export async function deleteMicrocycle(
     });
   }
 
-  await db.delete(programMicrocycles).where(eq(programMicrocycles.id, microcycleId));
+  await getDb().delete(programMicrocycles).where(eq(programMicrocycles.id, microcycleId));
   return getProgramTree(organizationId, programId);
 }
 
@@ -511,7 +511,7 @@ export async function moveWeekToMicrocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const week = await db.query.programWeeks.findFirst({
+  const week = await getDb().query.programWeeks.findFirst({
     where: and(
       eq(programWeeks.organizationId, organizationId),
       eq(programWeeks.programId, programId),
@@ -524,7 +524,7 @@ export async function moveWeekToMicrocycle(
   }
 
   if (microcycleId) {
-    const microcycle = await db.query.programMicrocycles.findFirst({
+    const microcycle = await getDb().query.programMicrocycles.findFirst({
       where: and(
         eq(programMicrocycles.organizationId, organizationId),
         eq(programMicrocycles.id, microcycleId),
@@ -537,12 +537,12 @@ export async function moveWeekToMicrocycle(
     }
 
     const sortOrder = await getNextMicrocycleWeekSortOrder(microcycleId);
-    await db
+    await getDb()
       .update(programWeeks)
       .set({ microcycleId, sortOrder })
       .where(eq(programWeeks.id, weekId));
   } else {
-    const [row] = await db
+    const [row] = await getDb()
       .select({ max: sql<number>`coalesce(max(${programWeeks.sortOrder}), -1)` })
       .from(programWeeks)
       .where(
@@ -552,7 +552,7 @@ export async function moveWeekToMicrocycle(
         ),
       );
     const sortOrder = (row?.max ?? -1) + 1;
-    await db
+    await getDb()
       .update(programWeeks)
       .set({ microcycleId: null, sortOrder })
       .where(eq(programWeeks.id, weekId));
@@ -569,7 +569,7 @@ export async function duplicateMesocycle(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const source = await db.query.programMesocycles.findFirst({
+  const source = await getDb().query.programMesocycles.findFirst({
     where: and(
       eq(programMesocycles.organizationId, organizationId),
       eq(programMesocycles.programId, programId),
@@ -600,7 +600,7 @@ export async function duplicateMesocycle(
     programId,
   );
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     const [newMesocycle] = await tx
       .insert(programMesocycles)
       .values({

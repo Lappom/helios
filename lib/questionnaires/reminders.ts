@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { getOrganizationPlanTier } from "@/lib/notifications/cron";
 import { dispatchNotification } from "@/lib/notifications/dispatch";
@@ -26,7 +26,7 @@ export async function dispatchQuestionnaireNotification(
     return;
   }
 
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, payload.organizationId),
       eq(clients.id, payload.clientId),

@@ -1,6 +1,7 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import type { NextRequest } from "next/server";
 import { logger } from "@/lib/api/logger";
+import { getDb, runWithDbScope } from "@/lib/db";
 import {
   handleOrganizationCreated,
   handleOrganizationDeleted,
@@ -9,6 +10,7 @@ import {
   handleOrganizationUpdated,
   handleSubscriptionDeleted,
   handleSubscriptionUpsert,
+  handleUserDeleted,
   handleUserUpdated,
 } from "@/lib/db/sync/clerk";
 
@@ -28,6 +30,7 @@ export async function POST(req: NextRequest) {
   const data = event.data as unknown as Record<string, unknown>;
 
   try {
+    await runWithDbScope({ bypass: true }, async () => {
     if (eventType === "organization.created") {
       await handleOrganizationCreated({
         id: String(data.id),
@@ -70,6 +73,10 @@ export async function POST(req: NextRequest) {
           | Array<{ email_address: string }>
           | undefined,
       });
+    } else if (eventType === "user.deleted") {
+      await handleUserDeleted({
+        id: String(data.id),
+      });
     } else if (
       eventType === "subscription.created" ||
       eventType === "subscription.updated" ||
@@ -90,6 +97,7 @@ export async function POST(req: NextRequest) {
     } else {
       logger.debug("Unhandled Clerk webhook event", { type: eventType });
     }
+    });
   } catch (error) {
     logger.captureException(error, { eventType });
     return new Response("Webhook handler failed", { status: 500 });

@@ -1,5 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   assignmentSessionOverrides,
   blockExerciseAlternatives,
@@ -66,7 +66,7 @@ async function fetchSessionBlocks(
   organizationId: string,
   programSessionId: string,
 ): Promise<ExerciseBlockItem[]> {
-  const session = await db.query.programSessions.findFirst({
+  const session = await getDb().query.programSessions.findFirst({
     where: and(
       eq(programSessions.organizationId, organizationId),
       eq(programSessions.id, programSessionId),
@@ -148,7 +148,7 @@ async function loadSessionLogsForAssignment(
   organizationId: string,
   assignmentId: string,
 ) {
-  return db.query.sessionLogs.findMany({
+  return getDb().query.sessionLogs.findMany({
     where: and(
       eq(sessionLogs.organizationId, organizationId),
       eq(sessionLogs.assignmentId, assignmentId),
@@ -221,7 +221,7 @@ export async function getEnrichedSchedule(
     loadScheduleSessionInputs(organizationId, assignment.programId, {
       startMesocycleId: assignment.startMesocycleId,
     }),
-    db.query.assignmentSessionOverrides.findMany({
+    getDb().query.assignmentSessionOverrides.findMany({
       where: eq(assignmentSessionOverrides.assignmentId, assignment.id),
     }),
     loadSessionLogsForAssignment(organizationId, assignment.id),
@@ -252,7 +252,7 @@ async function assertSessionBelongsToAssignment(
   programId: string,
   programSessionId: string,
 ) {
-  const session = await db.query.programSessions.findFirst({
+  const session = await getDb().query.programSessions.findFirst({
     where: and(
       eq(programSessions.organizationId, organizationId),
       eq(programSessions.id, programSessionId),
@@ -277,7 +277,7 @@ async function getSessionLogOrThrow(
   clientId: string,
   sessionLogId: string,
 ) {
-  const log = await db.query.sessionLogs.findFirst({
+  const log = await getDb().query.sessionLogs.findFirst({
     where: and(
       eq(sessionLogs.organizationId, organizationId),
       eq(sessionLogs.id, sessionLogId),
@@ -318,14 +318,14 @@ export async function getSessionExecutionDetail(
 
   const [blocks, sessionMeta, existingLog, setLogRows] = await Promise.all([
     fetchSessionBlocks(organizationId, programSessionId),
-    db.query.programSessions.findFirst({
+    getDb().query.programSessions.findFirst({
       where: and(
         eq(programSessions.organizationId, organizationId),
         eq(programSessions.id, programSessionId),
       ),
       with: { week: true },
     }),
-    db.query.sessionLogs.findFirst({
+    getDb().query.sessionLogs.findFirst({
       where: and(
         eq(sessionLogs.organizationId, organizationId),
         eq(sessionLogs.assignmentId, assignment.id),
@@ -333,7 +333,7 @@ export async function getSessionExecutionDetail(
         eq(sessionLogs.scheduledDate, scheduledDate),
       ),
     }),
-    db.query.sessionLogs
+    getDb().query.sessionLogs
       .findFirst({
         where: and(
           eq(sessionLogs.organizationId, organizationId),
@@ -346,7 +346,7 @@ export async function getSessionExecutionDetail(
         if (!log) {
           return [];
         }
-        return db.query.setLogs.findMany({
+        return getDb().query.setLogs.findMany({
           where: and(
             eq(setLogs.organizationId, organizationId),
             eq(setLogs.sessionLogId, log.id),
@@ -386,7 +386,7 @@ export async function startSession(
     programSessionId,
   );
 
-  const existingForOccurrence = await db.query.sessionLogs.findFirst({
+  const existingForOccurrence = await getDb().query.sessionLogs.findFirst({
     where: and(
       eq(sessionLogs.organizationId, organizationId),
       eq(sessionLogs.assignmentId, assignment.id),
@@ -413,7 +413,7 @@ export async function startSession(
     );
   }
 
-  const otherInProgress = await db.query.sessionLogs.findFirst({
+  const otherInProgress = await getDb().query.sessionLogs.findFirst({
     where: and(
       eq(sessionLogs.organizationId, organizationId),
       eq(sessionLogs.clientId, clientId),
@@ -431,7 +431,7 @@ export async function startSession(
     });
   }
 
-  await db.insert(sessionLogs).values({
+  await getDb().insert(sessionLogs).values({
     organizationId,
     clientId,
     assignmentId: assignment.id,
@@ -478,7 +478,7 @@ export async function logSet(
     });
   }
 
-  const blockExercise = await db.query.blockExercises.findFirst({
+  const blockExercise = await getDb().query.blockExercises.findFirst({
     where: and(
       eq(blockExercises.organizationId, organizationId),
       eq(blockExercises.id, input.blockExerciseId),
@@ -500,7 +500,7 @@ export async function logSet(
 
   const allowedExerciseIds = new Set([
     blockExercise.exerciseId,
-    ...(await db.query.blockExerciseAlternatives.findMany({
+    ...(await getDb().query.blockExerciseAlternatives.findMany({
       where: eq(
         blockExerciseAlternatives.blockExerciseId,
         blockExercise.id,
@@ -518,7 +518,7 @@ export async function logSet(
     });
   }
 
-  const existingSet = await db.query.setLogs.findFirst({
+  const existingSet = await getDb().query.setLogs.findFirst({
     where: and(
       eq(setLogs.organizationId, organizationId),
       eq(setLogs.sessionLogId, log.id),
@@ -528,7 +528,7 @@ export async function logSet(
   });
 
   if (existingSet) {
-    await db
+    await getDb()
       .update(setLogs)
       .set({
         setPrescriptionId: input.setPrescriptionId ?? null,
@@ -541,7 +541,7 @@ export async function logSet(
       })
       .where(eq(setLogs.id, existingSet.id));
   } else {
-    await db.insert(setLogs).values({
+    await getDb().insert(setLogs).values({
       organizationId,
       sessionLogId: log.id,
       blockExerciseId: input.blockExerciseId,
@@ -636,7 +636,7 @@ export async function completeSession(
 
   const completedAt = new Date();
 
-  await db
+  await getDb()
     .update(sessionLogs)
     .set({
       status: "completed",
@@ -646,7 +646,7 @@ export async function completeSession(
 
   const [blocks, setLogRows] = await Promise.all([
     fetchSessionBlocks(organizationId, programSessionId),
-    db.query.setLogs.findMany({
+    getDb().query.setLogs.findMany({
       where: and(
         eq(setLogs.organizationId, organizationId),
         eq(setLogs.sessionLogId, log.id),

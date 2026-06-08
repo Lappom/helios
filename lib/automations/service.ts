@@ -8,7 +8,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   automationActions,
   automationExecutions,
@@ -45,7 +45,7 @@ async function getLastExecution(
   organizationId: string,
   automationId: string,
 ): Promise<{ at: string; status: AutomationExecutionItem["status"] } | null> {
-  const row = await db.query.automationExecutions.findFirst({
+  const row = await getDb().query.automationExecutions.findFirst({
     where: and(
       eq(automationExecutions.organizationId, organizationId),
       eq(automationExecutions.automationId, automationId),
@@ -82,7 +82,7 @@ function mapListItem(
 }
 
 async function getAutomationOrThrow(organizationId: string, automationId: string) {
-  const row = await db.query.automations.findFirst({
+  const row = await getDb().query.automations.findFirst({
     where: and(
       eq(automations.organizationId, organizationId),
       eq(automations.id, automationId),
@@ -105,7 +105,7 @@ async function resolveCoachClerkUserId(
   organizationId: string,
   fallback: string,
 ): Promise<string> {
-  const member = await db.query.teamMembers.findFirst({
+  const member = await getDb().query.teamMembers.findFirst({
     where: eq(teamMembers.organizationId, organizationId),
     columns: { clerkUserId: true },
     orderBy: [asc(teamMembers.createdAt)],
@@ -129,7 +129,7 @@ async function replaceActions(
   automationId: string,
   actions: CreateAutomationInput["actions"],
 ): Promise<void> {
-  await db
+  await getDb()
     .delete(automationActions)
     .where(
       and(
@@ -140,7 +140,7 @@ async function replaceActions(
 
   if (actions.length === 0) return;
 
-  await db.insert(automationActions).values(
+  await getDb().insert(automationActions).values(
     actions.map((action, index) => ({
       organizationId,
       automationId,
@@ -167,18 +167,18 @@ export async function listAutomations(
   const whereClause = and(...filters);
 
   const [rows, totalRow] = await Promise.all([
-    db.query.automations.findMany({
+    getDb().query.automations.findMany({
       where: whereClause,
       orderBy: [desc(automations.updatedAt)],
       limit: query.limit,
       offset: query.offset,
     }),
-    db.select({ value: count() }).from(automations).where(whereClause),
+    getDb().select({ value: count() }).from(automations).where(whereClause),
   ]);
 
   const items = await Promise.all(
     rows.map(async (row) => {
-      const actionRows = await db.query.automationActions.findMany({
+      const actionRows = await getDb().query.automationActions.findMany({
         where: eq(automationActions.automationId, row.id),
         columns: { id: true },
       });
@@ -195,7 +195,7 @@ export async function getAutomationTree(
   automationId: string,
 ): Promise<AutomationTree> {
   const row = await getAutomationOrThrow(organizationId, automationId);
-  const actionRows = await db.query.automationActions.findMany({
+  const actionRows = await getDb().query.automationActions.findMany({
     where: and(
       eq(automationActions.organizationId, organizationId),
       eq(automationActions.automationId, automationId),
@@ -217,7 +217,7 @@ export async function createAutomation(
 ): Promise<AutomationTree> {
   validateAutomationInput(input.triggerType, input.triggerConfig, input.actions);
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(automations)
     .values({
       organizationId,
@@ -261,7 +261,7 @@ export async function patchAutomation(
     validateTriggerConfig(nextTriggerType, nextTriggerConfig);
   }
 
-  await db
+  await getDb()
     .update(automations)
     .set({
       name: input.name,
@@ -301,7 +301,7 @@ export async function deleteAutomation(
     });
   }
 
-  await db
+  await getDb()
     .delete(automations)
     .where(
       and(
@@ -319,7 +319,7 @@ export async function toggleAutomation(
   const existing = await getAutomationOrThrow(organizationId, automationId);
 
   if (isActive) {
-    const actionRows = await db.query.automationActions.findMany({
+    const actionRows = await getDb().query.automationActions.findMany({
       where: and(
         eq(automationActions.organizationId, organizationId),
         eq(automationActions.automationId, automationId),
@@ -336,7 +336,7 @@ export async function toggleAutomation(
     );
   }
 
-  await db
+  await getDb()
     .update(automations)
     .set({ isActive })
     .where(
@@ -365,7 +365,7 @@ export async function listAutomationExecutions(
   const whereClause = and(...filters);
 
   const [rows, totalRow] = await Promise.all([
-    db.query.automationExecutions.findMany({
+    getDb().query.automationExecutions.findMany({
       where: whereClause,
       orderBy: [desc(automationExecutions.createdAt)],
       limit: query.limit,
@@ -383,7 +383,7 @@ export async function listAutomationExecutions(
         },
       },
     }),
-    db
+    getDb()
       .select({ value: count() })
       .from(automationExecutions)
       .where(whereClause),

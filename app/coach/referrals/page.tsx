@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { ReferralsPageGate } from "@/components/coach/referrals/referrals-page-gate";
 import { requireRole } from "@/lib/auth/org-context";
-import { db } from "@/lib/db";
+import { getDb, runWithDbScope } from "@/lib/db";
 import { coachProfiles } from "@/lib/db/schema";
 import {
   getOrCreateProgram,
@@ -14,16 +14,18 @@ export default async function CoachReferralsPage() {
   const org = await requireRole("org_owner", "org_admin", "coach");
 
   const [program, dashboard, codesResult, conversionsResult, profile] =
-    await Promise.all([
-      getOrCreateProgram(org.organizationId, org.clerkUserId),
-      getReferralDashboard(org.organizationId),
-      listReferralCodes(org.organizationId, { page: 1, limit: 100 }),
-      listReferralConversions(org.organizationId, { page: 1, limit: 100 }),
-      db.query.coachProfiles.findFirst({
-        where: eq(coachProfiles.organizationId, org.organizationId),
-        columns: { slug: true, isPublished: true },
-      }),
-    ]);
+    await runWithDbScope({ organizationId: org.organizationId }, () =>
+      Promise.all([
+        getOrCreateProgram(org.organizationId, org.clerkUserId),
+        getReferralDashboard(org.organizationId),
+        listReferralCodes(org.organizationId, { page: 1, limit: 100 }),
+        listReferralConversions(org.organizationId, { page: 1, limit: 100 }),
+        getDb().query.coachProfiles.findFirst({
+          where: eq(coachProfiles.organizationId, org.organizationId),
+          columns: { slug: true, isPublished: true },
+        }),
+      ]),
+    );
 
   const coachSlug =
     profile?.isPublished && profile.slug ? profile.slug : null;

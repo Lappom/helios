@@ -11,7 +11,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   clients,
   questionnaireQuestions,
@@ -105,7 +105,7 @@ async function getQuestionnaireRowOrThrow(
   organizationId: string,
   questionnaireId: string,
 ) {
-  const row = await db.query.questionnaires.findFirst({
+  const row = await getDb().query.questionnaires.findFirst({
     where: and(
       eq(questionnaires.organizationId, organizationId),
       eq(questionnaires.id, questionnaireId),
@@ -128,7 +128,7 @@ async function loadQuestionnaireTree(
   organizationId: string,
   questionnaireId: string,
 ): Promise<QuestionnaireTree> {
-  const row = await db.query.questionnaires.findFirst({
+  const row = await getDb().query.questionnaires.findFirst({
     where: and(
       eq(questionnaires.organizationId, organizationId),
       eq(questionnaires.id, questionnaireId),
@@ -162,7 +162,7 @@ async function loadQuestionnaireTree(
 }
 
 async function nextQuestionSortOrder(questionnaireId: string): Promise<number> {
-  const last = await db.query.questionnaireQuestions.findFirst({
+  const last = await getDb().query.questionnaireQuestions.findFirst({
     where: eq(questionnaireQuestions.questionnaireId, questionnaireId),
     orderBy: [desc(questionnaireQuestions.sortOrder)],
     columns: { sortOrder: true },
@@ -180,7 +180,7 @@ async function insertQuestions(
   }
 
   let sortOrder = await nextQuestionSortOrder(questionnaireId);
-  await db.insert(questionnaireQuestions).values(
+  await getDb().insert(questionnaireQuestions).values(
     items.map((item) => ({
       organizationId,
       questionnaireId,
@@ -200,7 +200,7 @@ async function insertSchedule(
   type: "onboarding" | "weekly_checkin" | "custom",
 ) {
   if (type === "onboarding") {
-    await db.insert(questionnaireSchedules).values({
+    await getDb().insert(questionnaireSchedules).values({
       organizationId,
       questionnaireId,
       triggerType: "on_client_created",
@@ -210,7 +210,7 @@ async function insertSchedule(
   }
 
   if (type === "weekly_checkin") {
-    await db.insert(questionnaireSchedules).values({
+    await getDb().insert(questionnaireSchedules).values({
       organizationId,
       questionnaireId,
       triggerType: "weekly_cron",
@@ -227,7 +227,7 @@ export async function seedDefaultQuestionnairesIfMissing(
   organizationId: string,
   coachClerkUserId: string,
 ): Promise<void> {
-  const existing = await db.query.questionnaires.findFirst({
+  const existing = await getDb().query.questionnaires.findFirst({
     where: eq(questionnaires.organizationId, organizationId),
     columns: { id: true },
   });
@@ -236,7 +236,7 @@ export async function seedDefaultQuestionnairesIfMissing(
     return;
   }
 
-  const [onboarding] = await db
+  const [onboarding] = await getDb()
     .insert(questionnaires)
     .values({
       organizationId,
@@ -257,7 +257,7 @@ export async function seedDefaultQuestionnairesIfMissing(
     await insertSchedule(organizationId, onboarding.id, "onboarding");
   }
 
-  const [weekly] = await db
+  const [weekly] = await getDb()
     .insert(questionnaires)
     .values({
       organizationId,
@@ -292,14 +292,14 @@ export async function listQuestionnaires(
   const where = and(...conditions);
 
   const [rows, totalRow] = await Promise.all([
-    db.query.questionnaires.findMany({
+    getDb().query.questionnaires.findMany({
       where,
       orderBy: [desc(questionnaires.updatedAt)],
       limit: options.limit,
       offset: options.offset,
       with: { questions: { columns: { id: true } } },
     }),
-    db.select({ total: count() }).from(questionnaires).where(where),
+    getDb().select({ total: count() }).from(questionnaires).where(where),
   ]);
 
   return {
@@ -322,7 +322,7 @@ export async function createQuestionnaire(
   coachClerkUserId: string,
   input: CreateQuestionnaireInput,
 ): Promise<QuestionnaireTree> {
-  const [created] = await db
+  const [created] = await getDb()
     .insert(questionnaires)
     .values({
       organizationId,
@@ -359,7 +359,7 @@ export async function patchQuestionnaire(
 ): Promise<QuestionnaireTree> {
   await getQuestionnaireRowOrThrow(organizationId, questionnaireId);
 
-  await db
+  await getDb()
     .update(questionnaires)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
@@ -382,7 +382,7 @@ export async function deleteQuestionnaire(
 ): Promise<void> {
   await getQuestionnaireRowOrThrow(organizationId, questionnaireId);
 
-  await db
+  await getDb()
     .delete(questionnaires)
     .where(
       and(
@@ -402,7 +402,7 @@ export async function createQuestionnaireQuestion(
     questionnaireId,
   );
 
-  const questionCount = await db
+  const questionCount = await getDb()
     .select({ total: count() })
     .from(questionnaireQuestions)
     .where(eq(questionnaireQuestions.questionnaireId, questionnaireId));
@@ -418,7 +418,7 @@ export async function createQuestionnaireQuestion(
 
   const sortOrder = await nextQuestionSortOrder(questionnaireId);
 
-  await db.insert(questionnaireQuestions).values({
+  await getDb().insert(questionnaireQuestions).values({
     organizationId,
     questionnaireId,
     sortOrder,
@@ -441,7 +441,7 @@ export async function patchQuestionnaireQuestion(
 ): Promise<QuestionnaireTree> {
   await getQuestionnaireRowOrThrow(organizationId, questionnaireId);
 
-  const question = await db.query.questionnaireQuestions.findFirst({
+  const question = await getDb().query.questionnaireQuestions.findFirst({
     where: and(
       eq(questionnaireQuestions.organizationId, organizationId),
       eq(questionnaireQuestions.questionnaireId, questionnaireId),
@@ -458,7 +458,7 @@ export async function patchQuestionnaireQuestion(
     });
   }
 
-  await db
+  await getDb()
     .update(questionnaireQuestions)
     .set({
       ...(input.label !== undefined ? { label: input.label } : {}),
@@ -478,7 +478,7 @@ export async function deleteQuestionnaireQuestion(
 ): Promise<QuestionnaireTree> {
   await getQuestionnaireRowOrThrow(organizationId, questionnaireId);
 
-  await db
+  await getDb()
     .delete(questionnaireQuestions)
     .where(
       and(
@@ -488,12 +488,12 @@ export async function deleteQuestionnaireQuestion(
       ),
     );
 
-  const remaining = await db.query.questionnaireQuestions.findMany({
+  const remaining = await getDb().query.questionnaireQuestions.findMany({
     where: eq(questionnaireQuestions.questionnaireId, questionnaireId),
     orderBy: [asc(questionnaireQuestions.sortOrder)],
   });
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     for (let index = 0; index < remaining.length; index++) {
       await tx
         .update(questionnaireQuestions)
@@ -512,7 +512,7 @@ export async function reorderQuestionnaireQuestions(
 ): Promise<QuestionnaireTree> {
   await getQuestionnaireRowOrThrow(organizationId, questionnaireId);
 
-  const existing = await db.query.questionnaireQuestions.findMany({
+  const existing = await getDb().query.questionnaireQuestions.findMany({
     where: eq(questionnaireQuestions.questionnaireId, questionnaireId),
     columns: { id: true },
   });
@@ -530,7 +530,7 @@ export async function reorderQuestionnaireQuestions(
     });
   }
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     for (let index = 0; index < questionIds.length; index++) {
       await tx
         .update(questionnaireQuestions)
@@ -549,12 +549,12 @@ export async function patchQuestionnaireSchedule(
 ): Promise<QuestionnaireTree> {
   await getQuestionnaireRowOrThrow(organizationId, questionnaireId);
 
-  const existing = await db.query.questionnaireSchedules.findFirst({
+  const existing = await getDb().query.questionnaireSchedules.findFirst({
     where: eq(questionnaireSchedules.questionnaireId, questionnaireId),
   });
 
   if (existing) {
-    await db
+    await getDb()
       .update(questionnaireSchedules)
       .set({
         triggerType: input.triggerType,
@@ -566,7 +566,7 @@ export async function patchQuestionnaireSchedule(
       })
       .where(eq(questionnaireSchedules.id, existing.id));
   } else {
-    await db.insert(questionnaireSchedules).values({
+    await getDb().insert(questionnaireSchedules).values({
       organizationId,
       questionnaireId,
       triggerType: input.triggerType,
@@ -604,7 +604,7 @@ export async function listQuestionnaireSubmissions(
   const where = and(...conditions);
 
   const [rows, totalRow] = await Promise.all([
-    db.query.questionnaireSubmissions.findMany({
+    getDb().query.questionnaireSubmissions.findMany({
       where,
       orderBy: [desc(questionnaireSubmissions.createdAt)],
       limit: options.limit,
@@ -614,7 +614,7 @@ export async function listQuestionnaireSubmissions(
         client: { columns: { firstName: true, lastName: true } },
       },
     }),
-    db
+    getDb()
       .select({ total: count() })
       .from(questionnaireSubmissions)
       .where(where),
@@ -644,7 +644,7 @@ export async function getQuestionnaireSubmissionStats(
   const periodKey = getIsoWeekKey(new Date());
 
   const [pendingRow, overdueRow, submittedRow, totalRow] = await Promise.all([
-    db
+    getDb()
       .select({ total: count() })
       .from(questionnaireSubmissions)
       .where(
@@ -654,7 +654,7 @@ export async function getQuestionnaireSubmissionStats(
           eq(questionnaireSubmissions.periodKey, periodKey),
         ),
       ),
-    db
+    getDb()
       .select({ total: count() })
       .from(questionnaireSubmissions)
       .where(
@@ -664,7 +664,7 @@ export async function getQuestionnaireSubmissionStats(
           eq(questionnaireSubmissions.periodKey, periodKey),
         ),
       ),
-    db
+    getDb()
       .select({ total: count() })
       .from(questionnaireSubmissions)
       .where(
@@ -674,7 +674,7 @@ export async function getQuestionnaireSubmissionStats(
           eq(questionnaireSubmissions.periodKey, periodKey),
         ),
       ),
-    db
+    getDb()
       .select({ total: count() })
       .from(questionnaireSubmissions)
       .where(
@@ -705,7 +705,7 @@ export async function getQuestionnaireSubmissionDetail(
   submissionId: string,
   scopedClientId?: string,
 ): Promise<QuestionnaireSubmissionDetail> {
-  const row = await db.query.questionnaireSubmissions.findFirst({
+  const row = await getDb().query.questionnaireSubmissions.findFirst({
     where: and(
       eq(questionnaireSubmissions.organizationId, organizationId),
       eq(questionnaireSubmissions.id, submissionId),
@@ -778,7 +778,7 @@ export async function listPendingQuestionnairesForClient(
   organizationId: string,
   clientId: string,
 ): Promise<ClientPendingQuestionnaire[]> {
-  const pending = await db.query.questionnaireSubmissions.findMany({
+  const pending = await getDb().query.questionnaireSubmissions.findMany({
     where: and(
       eq(questionnaireSubmissions.organizationId, organizationId),
       eq(questionnaireSubmissions.clientId, clientId),
@@ -808,7 +808,7 @@ export async function submitQuestionnaire(
   submissionId: string,
   input: SubmitQuestionnaireInput,
 ): Promise<QuestionnaireSubmissionDetail> {
-  const submission = await db.query.questionnaireSubmissions.findFirst({
+  const submission = await getDb().query.questionnaireSubmissions.findFirst({
     where: and(
       eq(questionnaireSubmissions.organizationId, organizationId),
       eq(questionnaireSubmissions.id, submissionId),
@@ -875,7 +875,7 @@ export async function submitQuestionnaire(
 
   const now = new Date();
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     await tx
       .update(questionnaireSubmissions)
       .set({ status: "submitted", submittedAt: now })
@@ -906,7 +906,7 @@ async function createSubmissionIfMissing(params: {
   sendDueNotification?: boolean;
   questionnaireName?: string;
 }): Promise<boolean> {
-  const existing = await db.query.questionnaireSubmissions.findFirst({
+  const existing = await getDb().query.questionnaireSubmissions.findFirst({
     where: and(
       eq(questionnaireSubmissions.questionnaireId, params.questionnaireId),
       eq(questionnaireSubmissions.clientId, params.clientId),
@@ -919,7 +919,7 @@ async function createSubmissionIfMissing(params: {
     return false;
   }
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(questionnaireSubmissions)
     .values({
       organizationId: params.organizationId,
@@ -949,7 +949,7 @@ export async function createOnboardingSubmissionForClient(
   organizationId: string,
   clientId: string,
 ): Promise<void> {
-  const questionnaire = await db.query.questionnaires.findFirst({
+  const questionnaire = await getDb().query.questionnaires.findFirst({
     where: and(
       eq(questionnaires.organizationId, organizationId),
       eq(questionnaires.type, "onboarding"),
@@ -981,7 +981,7 @@ export async function processWeeklyQuestionnaireCreates(
   const day = now.getUTCDay();
   const hour = now.getUTCHours();
 
-  const schedules = await db.query.questionnaireSchedules.findMany({
+  const schedules = await getDb().query.questionnaireSchedules.findMany({
     where: and(
       eq(questionnaireSchedules.triggerType, "weekly_cron"),
       eq(questionnaireSchedules.isActive, true),
@@ -1003,7 +1003,7 @@ export async function processWeeklyQuestionnaireCreates(
       continue;
     }
 
-    const activeClients = await db.query.clients.findMany({
+    const activeClients = await getDb().query.clients.findMany({
       where: and(
         eq(clients.organizationId, schedule.organizationId),
         eq(clients.status, "ACTIVE"),
@@ -1042,7 +1042,7 @@ export async function processWeeklyQuestionnaireReminders(
   const day = now.getUTCDay();
   const hour = now.getUTCHours();
 
-  const schedules = await db.query.questionnaireSchedules.findMany({
+  const schedules = await getDb().query.questionnaireSchedules.findMany({
     where: and(
       eq(questionnaireSchedules.triggerType, "weekly_cron"),
       eq(questionnaireSchedules.isActive, true),
@@ -1058,7 +1058,7 @@ export async function processWeeklyQuestionnaireReminders(
       continue;
     }
 
-    const pending = await db.query.questionnaireSubmissions.findMany({
+    const pending = await getDb().query.questionnaireSubmissions.findMany({
       where: and(
         eq(questionnaireSubmissions.organizationId, schedule.organizationId),
         eq(questionnaireSubmissions.questionnaireId, schedule.questionnaireId),
@@ -1080,7 +1080,7 @@ export async function processWeeklyQuestionnaireReminders(
         eventType: "questionnaire_reminder",
       });
 
-      await db
+      await getDb()
         .update(questionnaireSubmissions)
         .set({ remindedAt: now })
         .where(eq(questionnaireSubmissions.id, submission.id));
@@ -1095,7 +1095,7 @@ export async function processWeeklyQuestionnaireReminders(
 export async function markOverdueSubmissions(
   now: Date = new Date(),
 ): Promise<{ marked: number }> {
-  const result = await db
+  const result = await getDb()
     .update(questionnaireSubmissions)
     .set({ status: "overdue" })
     .where(

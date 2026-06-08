@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getDb, type DrizzleDb } from "@/lib/db";
 import {
   blockExercises,
   exerciseBlocks,
@@ -15,7 +15,7 @@ import type { ResolvedProgramDraft } from "@/lib/ai/schemas/program-draft";
 import { getProgramTree } from "./service";
 import type { ProgramTree } from "./types";
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Tx = Parameters<Parameters<DrizzleDb["transaction"]>[0]>[0];
 
 async function insertWeekTree(
   tx: Tx,
@@ -136,7 +136,7 @@ export async function buildProgramFromAiDraft(
     });
   }
 
-  const programId = await db.transaction(async (tx) => {
+  const programId = await getDb().transaction(async (tx) => {
     const [program] = await tx
       .insert(programs)
       .values({

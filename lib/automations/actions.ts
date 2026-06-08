@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   clientTags,
   notificationTemplates,
@@ -31,7 +31,7 @@ export type ExecuteActionContext = {
 };
 
 async function resolvePlanTier(organizationId: string): Promise<PlanTier> {
-  const org = await db.query.organizations.findFirst({
+  const org = await getDb().query.organizations.findFirst({
     where: eq(organizations.id, organizationId),
     columns: { planTier: true },
   });
@@ -68,7 +68,7 @@ export async function previewAction(
   switch (action.actionType) {
     case "assign_program": {
       const programId = String(action.actionConfig.programId ?? "");
-      const program = await db.query.programs.findFirst({
+      const program = await getDb().query.programs.findFirst({
         where: and(
           eq(programs.organizationId, context.organizationId),
           eq(programs.id, programId),
@@ -88,7 +88,7 @@ export async function previewAction(
     }
     case "assign_nutrition": {
       const planId = String(action.actionConfig.planId ?? "");
-      const plan = await db.query.nutritionPlans.findFirst({
+      const plan = await getDb().query.nutritionPlans.findFirst({
         where: and(
           eq(nutritionPlans.organizationId, context.organizationId),
           eq(nutritionPlans.id, planId),
@@ -107,7 +107,7 @@ export async function previewAction(
     }
     case "create_assessment": {
       const templateId = String(action.actionConfig.templateId ?? "");
-      const template = await db.query.assessmentTemplates.findFirst({
+      const template = await getDb().query.assessmentTemplates.findFirst({
         where: and(
           eq(assessmentTemplates.organizationId, context.organizationId),
           eq(assessmentTemplates.id, templateId),
@@ -126,7 +126,7 @@ export async function previewAction(
     }
     case "send_notification": {
       if (action.actionConfig.templateId) {
-        const template = await db.query.notificationTemplates.findFirst({
+        const template = await getDb().query.notificationTemplates.findFirst({
           where: and(
             eq(notificationTemplates.organizationId, context.organizationId),
             eq(notificationTemplates.id, String(action.actionConfig.templateId)),
@@ -147,7 +147,7 @@ export async function previewAction(
     }
     case "add_tag": {
       if (action.actionConfig.tagId) {
-        const tag = await db.query.clientTags.findFirst({
+        const tag = await getDb().query.clientTags.findFirst({
           where: and(
             eq(clientTags.organizationId, context.organizationId),
             eq(clientTags.id, String(action.actionConfig.tagId)),
@@ -232,7 +232,7 @@ export async function executeAutomationAction(
       const { asc, eq, and } = await import("drizzle-orm");
       const { db } = await import("@/lib/db");
       const { programMesocycles } = await import("@/lib/db/schema");
-      const completed = await db.query.programMesocycles.findFirst({
+      const completed = await getDb().query.programMesocycles.findFirst({
         where: and(
           eq(programMesocycles.organizationId, organizationId),
           eq(programMesocycles.programId, programId),
@@ -242,7 +242,7 @@ export async function executeAutomationAction(
       if (!completed) {
         throw new Error("Completed mesocycle not found.");
       }
-      const candidates = await db.query.programMesocycles.findMany({
+      const candidates = await getDb().query.programMesocycles.findMany({
         where: and(
           eq(programMesocycles.organizationId, organizationId),
           eq(programMesocycles.programId, programId),
@@ -312,7 +312,7 @@ export async function executeAutomationAction(
       const tier = planTier ?? (await resolvePlanTier(organizationId));
 
       if (action.actionConfig.templateId) {
-        const template = await db.query.notificationTemplates.findFirst({
+        const template = await getDb().query.notificationTemplates.findFirst({
           where: and(
             eq(notificationTemplates.organizationId, organizationId),
             eq(notificationTemplates.id, String(action.actionConfig.templateId)),

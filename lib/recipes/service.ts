@@ -1,5 +1,5 @@
 import { and, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { foods, recipeIngredients, recipes } from "@/lib/db/schema";
 import { problem } from "@/lib/api/response";
 import type { MacrosPer100g } from "@/lib/foods/types";
@@ -61,7 +61,7 @@ async function loadFoodsForIngredients(
     return new Map();
   }
 
-  const rows = await db
+  const rows = await getDb()
     .select()
     .from(foods)
     .where(
@@ -139,7 +139,7 @@ async function loadRecipeIngredients(
   organizationId: string,
   recipeId: string,
 ): Promise<Array<{ ingredient: IngredientRow; food: FoodRow }>> {
-  const rows = await db
+  const rows = await getDb()
     .select({
       ingredient: recipeIngredients,
       food: foods,
@@ -158,7 +158,7 @@ async function loadRecipeIngredients(
 }
 
 async function getRecipeRow(organizationId: string, id: string) {
-  const [recipe] = await db
+  const [recipe] = await getDb()
     .select()
     .from(recipes)
     .where(and(eq(recipes.id, id), eq(recipes.organizationId, organizationId)))
@@ -194,12 +194,12 @@ export async function listRecipes(
 ): Promise<{ items: RecipeListItem[]; total: number }> {
   const where = buildListWhere(organizationId, options);
 
-  const [totalRow] = await db
+  const [totalRow] = await getDb()
     .select({ total: count() })
     .from(recipes)
     .where(where);
 
-  const recipeRows = await db
+  const recipeRows = await getDb()
     .select()
     .from(recipes)
     .where(where)
@@ -212,7 +212,7 @@ export async function listRecipes(
   }
 
   const recipeIds = recipeRows.map((row) => row.id);
-  const ingredientRows = await db
+  const ingredientRows = await getDb()
     .select({
       ingredient: recipeIngredients,
       food: foods,
@@ -336,7 +336,7 @@ async function replaceRecipeIngredients(
     ingredients,
   );
 
-  await db
+  await getDb()
     .delete(recipeIngredients)
     .where(
       and(
@@ -349,7 +349,7 @@ async function replaceRecipeIngredients(
     return;
   }
 
-  await db.insert(recipeIngredients).values(
+  await getDb().insert(recipeIngredients).values(
     resolved.map(({ input }, index) => ({
       organizationId,
       recipeId,
@@ -368,7 +368,7 @@ export async function createRecipe(
 ): Promise<RecipeDetail> {
   await validateAndResolveIngredients(organizationId, input.ingredients);
 
-  const [inserted] = await db
+  const [inserted] = await getDb()
     .insert(recipes)
     .values({
       organizationId,
@@ -416,7 +416,7 @@ export async function updateRecipe(
   if (input.instructions !== undefined) patch.instructions = input.instructions;
 
   if (Object.keys(patch).length > 0) {
-    await db
+    await getDb()
       .update(recipes)
       .set(patch)
       .where(

@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients, habitAssignments, habitLogs } from "@/lib/db/schema";
 import { getOrganizationPlanTier } from "@/lib/notifications/cron";
 import { dispatchNotification } from "@/lib/notifications/dispatch";
@@ -28,7 +28,7 @@ export async function enqueueNotification(
     return;
   }
 
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, payload.organizationId),
       eq(clients.id, payload.clientId),
@@ -68,7 +68,7 @@ export async function processHabitReminders(now: Date = new Date()): Promise<{
   const currentTime = `${hour}:${minute}`;
   const today = utcToday();
 
-  const assignments = await db.query.habitAssignments.findMany({
+  const assignments = await getDb().query.habitAssignments.findMany({
     where: and(
       eq(habitAssignments.status, "active"),
       eq(habitAssignments.reminderTime, currentTime),

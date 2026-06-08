@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   programMacrocycles,
   programMesocycles,
@@ -19,7 +19,7 @@ export async function loadScheduleSessionInputs(
   programId: string,
   options: LoadScheduleOptions = {},
 ): Promise<ScheduleSessionInput[]> {
-  const program = await db.query.programs.findFirst({
+  const program = await getDb().query.programs.findFirst({
     where: and(
       eq(programs.organizationId, organizationId),
       eq(programs.id, programId),

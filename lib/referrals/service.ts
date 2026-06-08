@@ -9,7 +9,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   bookings,
   clients,
@@ -91,7 +91,7 @@ export async function getOrCreateProgram(
   organizationId: string,
   coachClerkUserId: string,
 ): Promise<ReferralProgramDto> {
-  const existing = await db.query.referralPrograms.findFirst({
+  const existing = await getDb().query.referralPrograms.findFirst({
     where: and(
       eq(referralPrograms.organizationId, organizationId),
       eq(referralPrograms.coachClerkUserId, coachClerkUserId),
@@ -102,7 +102,7 @@ export async function getOrCreateProgram(
     return mapProgram(existing);
   }
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(referralPrograms)
     .values({
       organizationId,
@@ -120,7 +120,7 @@ export async function updateProgram(
 ): Promise<ReferralProgramDto> {
   const program = await getOrCreateProgram(organizationId, coachClerkUserId);
 
-  const [updated] = await db
+  const [updated] = await getDb()
     .update(referralPrograms)
     .set({
       ...(input.refereeDiscountType !== undefined
@@ -156,7 +156,7 @@ async function ensureCodesForEligibleClients(
   organizationId: string,
   programId: string,
 ): Promise<void> {
-  const eligibleClients = await db.query.clients.findMany({
+  const eligibleClients = await getDb().query.clients.findMany({
     where: and(
       eq(clients.organizationId, organizationId),
       inArray(clients.status, [...ELIGIBLE_CLIENT_STATUSES]),
@@ -176,7 +176,7 @@ export async function generateCodeForClient(
   programId: string,
   clientId: string,
 ): Promise<typeof referralCodes.$inferSelect | null> {
-  const existing = await db.query.referralCodes.findFirst({
+  const existing = await getDb().query.referralCodes.findFirst({
     where: eq(referralCodes.clientId, clientId),
   });
 
@@ -187,7 +187,7 @@ export async function generateCodeForClient(
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = generateReferralCodeValue();
     try {
-      const [created] = await db
+      const [created] = await getDb()
         .insert(referralCodes)
         .values({
           organizationId,
@@ -219,7 +219,7 @@ export async function regenerateCodeForClient(
 ): Promise<ReferralCodeListItem> {
   const program = await getOrCreateProgram(organizationId, coachClerkUserId);
 
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.id, clientId),
       eq(clients.organizationId, organizationId),
@@ -235,7 +235,7 @@ export async function regenerateCodeForClient(
     });
   }
 
-  const existing = await db.query.referralCodes.findFirst({
+  const existing = await getDb().query.referralCodes.findFirst({
     where: eq(referralCodes.clientId, clientId),
   });
 
@@ -243,7 +243,7 @@ export async function regenerateCodeForClient(
     const code = generateReferralCodeValue();
     try {
       if (existing) {
-        const [updated] = await db
+        const [updated] = await getDb()
           .update(referralCodes)
           .set({ code, isActive: true })
           .where(eq(referralCodes.id, existing.id))
@@ -302,7 +302,7 @@ export async function listReferralCodes(
   const whereClause = and(...conditions);
 
   const [rows, totalRow] = await Promise.all([
-    db
+    getDb()
       .select({
         code: referralCodes,
         firstName: clients.firstName,
@@ -314,7 +314,7 @@ export async function listReferralCodes(
       .orderBy(desc(referralCodes.createdAt))
       .limit(query.limit)
       .offset(offset),
-    db
+    getDb()
       .select({ total: count() })
       .from(referralCodes)
       .where(whereClause),
@@ -350,7 +350,7 @@ export async function listReferralConversions(
   const referredClient = alias(clients, "referred_client");
 
   const [rows, totalRow] = await Promise.all([
-    db
+    getDb()
       .select({
         conversion: referralConversions,
         referrerFirstName: referrerClient.firstName,
@@ -371,7 +371,7 @@ export async function listReferralConversions(
       .orderBy(desc(referralConversions.createdAt))
       .limit(query.limit)
       .offset(offset),
-    db
+    getDb()
       .select({ total: count() })
       .from(referralConversions)
       .where(whereClause),
@@ -409,7 +409,7 @@ export async function validateReferralCode(
   prospectEmail?: string,
 ): Promise<ReferralValidationResult> {
   const normalized = normalizeReferralCode(code);
-  const referralCode = await db.query.referralCodes.findFirst({
+  const referralCode = await getDb().query.referralCodes.findFirst({
     where: and(
       eq(referralCodes.organizationId, organizationId),
       eq(referralCodes.code, normalized),
@@ -462,7 +462,7 @@ export async function getReferralCreditBalance(
   organizationId: string,
   clientId: string,
 ): Promise<number> {
-  const balance = await db.query.referralCreditBalances.findFirst({
+  const balance = await getDb().query.referralCreditBalances.findFirst({
     where: and(
       eq(referralCreditBalances.organizationId, organizationId),
       eq(referralCreditBalances.clientId, clientId),
@@ -496,7 +496,7 @@ export async function recordPendingConversion(input: {
   refereeDiscountCents: number;
   commissionCents: number;
 }): Promise<void> {
-  await db.insert(referralConversions).values({
+  await getDb().insert(referralConversions).values({
     organizationId: input.organizationId,
     referralCodeId: input.referralCodeId,
     referrerClientId: input.referrerClientId,
@@ -524,7 +524,7 @@ async function creditClientBalance(
     return;
   }
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     await tx.insert(referralCreditLedger).values({
       organizationId,
       clientId,
@@ -573,7 +573,7 @@ export async function handleReferralPaymentReceived(
     return;
   }
 
-  const conversion = await db.query.referralConversions.findFirst({
+  const conversion = await getDb().query.referralConversions.findFirst({
     where: and(
       eq(referralConversions.organizationId, payload.organizationId),
       eq(referralConversions.bookingId, bookingId),
@@ -589,7 +589,7 @@ export async function handleReferralPaymentReceived(
       conversion.referralCode.program.commissionValue,
     );
 
-    await db
+    await getDb()
       .update(referralConversions)
       .set({
         status: "converted",
@@ -599,7 +599,7 @@ export async function handleReferralPaymentReceived(
       })
       .where(eq(referralConversions.id, conversion.id));
 
-    await db
+    await getDb()
       .update(referralCodes)
       .set({
         conversionCount: sql`${referralCodes.conversionCount} + 1`,
@@ -621,7 +621,7 @@ export async function handleReferralPaymentReceived(
     }
   }
 
-  const bookingRow = await db.query.bookings.findFirst({
+  const bookingRow = await getDb().query.bookings.findFirst({
     where: and(
       eq(bookings.id, bookingId),
       eq(bookings.organizationId, payload.organizationId),
@@ -656,7 +656,7 @@ export async function getReferralDashboard(
   twelveMonthsAgo.setUTCHours(0, 0, 0, 0);
 
   const [statusCounts, monthlyRows, topReferrers] = await Promise.all([
-    db
+    getDb()
       .select({
         status: referralConversions.status,
         total: count(),
@@ -665,7 +665,7 @@ export async function getReferralDashboard(
       .from(referralConversions)
       .where(eq(referralConversions.organizationId, organizationId))
       .groupBy(referralConversions.status),
-    db
+    getDb()
       .select({
         month: sql<string>`to_char(date_trunc('month', ${referralConversions.convertedAt}), 'YYYY-MM')`,
         count: count(),
@@ -680,7 +680,7 @@ export async function getReferralDashboard(
       )
       .groupBy(sql`date_trunc('month', ${referralConversions.convertedAt})`)
       .orderBy(sql`date_trunc('month', ${referralConversions.convertedAt})`),
-    db
+    getDb()
       .select({
         clientId: referralConversions.referrerClientId,
         firstName: clients.firstName,
@@ -741,7 +741,7 @@ export async function getClientReferralInfo(
   organizationId: string,
   clientId: string,
 ): Promise<ClientReferralInfo | null> {
-  const referralCode = await db.query.referralCodes.findFirst({
+  const referralCode = await getDb().query.referralCodes.findFirst({
     where: and(
       eq(referralCodes.organizationId, organizationId),
       eq(referralCodes.clientId, clientId),
@@ -756,7 +756,7 @@ export async function getClientReferralInfo(
 
   const balanceCents = await getReferralCreditBalance(organizationId, clientId);
 
-  const profile = await db.query.coachProfiles.findFirst({
+  const profile = await getDb().query.coachProfiles.findFirst({
     where: eq(coachProfiles.organizationId, organizationId),
     columns: { slug: true, isPublished: true },
   });
@@ -779,7 +779,7 @@ export async function handleReferralClientCreated(
   organizationId: string,
   clientId: string,
 ): Promise<void> {
-  const programs = await db.query.referralPrograms.findMany({
+  const programs = await getDb().query.referralPrograms.findMany({
     where: and(
       eq(referralPrograms.organizationId, organizationId),
       eq(referralPrograms.isActive, true),
@@ -791,7 +791,7 @@ export async function handleReferralClientCreated(
     return;
   }
 
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: eq(clients.id, clientId),
     columns: { status: true },
   });
@@ -817,7 +817,7 @@ export async function estimateCommissionCents(
   referralCodeId: string,
   paymentAmountCents: number,
 ): Promise<number> {
-  const referralCode = await db.query.referralCodes.findFirst({
+  const referralCode = await getDb().query.referralCodes.findFirst({
     where: and(
       eq(referralCodes.id, referralCodeId),
       eq(referralCodes.organizationId, organizationId),

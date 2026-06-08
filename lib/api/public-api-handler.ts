@@ -5,6 +5,7 @@ import { logger } from "@/lib/api/logger";
 import { enforceApiRateLimits } from "@/lib/api/rate-limit";
 import { jsonOk, toProblemResponse } from "@/lib/api/response";
 import { consumeApiCredit } from "@/lib/billing/api-credits";
+import { getDb, runWithDbScope } from "@/lib/db";
 
 export type PublicApiHandlerContext = {
   request: Request;
@@ -28,9 +29,13 @@ export function withPublicApiHandler(handler: PublicApiHandler) {
     try {
       const apiKey = await requireApiKey(request);
       await enforceApiRateLimits(apiKey.organizationId, apiKey.planTier);
-      await consumeApiCredit(apiKey.organizationId, apiKey.planTier);
-
-      const response = await handler({ request, apiKey });
+      const response = await runWithDbScope(
+        { organizationId: apiKey.organizationId },
+        async () => {
+          await consumeApiCredit(apiKey.organizationId, apiKey.planTier);
+          return handler({ request, apiKey });
+        },
+      );
       const headers = applyCorsHeaders(request, response.headers);
       return new Response(response.body, {
         status: response.status,

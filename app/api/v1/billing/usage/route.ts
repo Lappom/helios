@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import { checkQuota } from "@/lib/billing/access";
 import { getPlanLimit } from "@/lib/billing/plans";
@@ -18,7 +18,7 @@ export const GET = withApiHandler(
       checkQuota("notifications"),
     ]);
 
-    const subscription = await db.query.subscriptions.findFirst({
+    const subscription = await getDb().query.subscriptions.findFirst({
       where: eq(subscriptions.organizationId, org.organizationId),
       columns: {
         status: true,

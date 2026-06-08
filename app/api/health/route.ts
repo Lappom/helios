@@ -1,10 +1,12 @@
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb, runWithDbScope } from "@/lib/db";
 import { jsonOk } from "@/lib/api/response";
 
 export async function GET() {
   try {
-    await db.execute(sql`SELECT 1`);
+    await runWithDbScope({ bypass: true }, () =>
+      getDb().execute(sql`SELECT 1`),
+    );
     return jsonOk({
       status: "ok",
       db: "connected",

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
 import type { PlanTier } from "@/lib/auth/types";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import type { QuotaCheckResult } from "./access";
 import { getPlanLimit } from "./plans";
@@ -22,7 +22,7 @@ export async function consumeNotifications(
 
   const limit = getPlanLimit(planTier, "notifications");
 
-  const subscription = await db.query.subscriptions.findFirst({
+  const subscription = await getDb().query.subscriptions.findFirst({
     where: eq(subscriptions.organizationId, organizationId),
     columns: { notificationsSent: true },
   });
@@ -38,7 +38,7 @@ export async function consumeNotifications(
     });
   }
 
-  await db
+  await getDb()
     .update(subscriptions)
     .set({
       notificationsSent: used + amount,
@@ -62,7 +62,7 @@ export async function consumeNotifications(
 }
 
 export async function resetAllNotificationQuotas(): Promise<number> {
-  const rows = await db
+  const rows = await getDb()
     .update(subscriptions)
     .set({
       notificationsSent: 0,

@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import type { PlanTier } from "@/lib/auth/types";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { driveFiles } from "@/lib/db/schema";
 import { getPlanLimit } from "./plans";
 import type { QuotaCheckResult } from "./access";
@@ -8,7 +8,7 @@ import type { QuotaCheckResult } from "./access";
 export async function getDriveStorageUsed(
   organizationId: string,
 ): Promise<number> {
-  const [row] = await db
+  const [row] = await getDb()
     .select({
       total: sql<number>`coalesce(sum(${driveFiles.sizeBytes}), 0)::int`,
     })

@@ -9,7 +9,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   clients,
   feedbackQuestions,
@@ -77,7 +77,7 @@ function clientDisplayName(client: {
 }
 
 async function getTemplateRowOrThrow(organizationId: string, templateId: string) {
-  const template = await db.query.sessionFeedbackTemplates.findFirst({
+  const template = await getDb().query.sessionFeedbackTemplates.findFirst({
     where: and(
       eq(sessionFeedbackTemplates.organizationId, organizationId),
       eq(sessionFeedbackTemplates.id, templateId),
@@ -105,7 +105,7 @@ async function clearDefaultTemplate(organizationId: string, exceptId?: string) {
     conditions.push(sql`${sessionFeedbackTemplates.id} <> ${exceptId}`);
   }
 
-  await db
+  await getDb()
     .update(sessionFeedbackTemplates)
     .set({ isDefault: false })
     .where(and(...conditions));
@@ -115,7 +115,7 @@ async function resolveSeedCoachClerkUserId(
   organizationId: string,
   fallbackClerkUserId: string,
 ): Promise<string> {
-  const member = await db.query.teamMembers.findFirst({
+  const member = await getDb().query.teamMembers.findFirst({
     where: eq(teamMembers.organizationId, organizationId),
     columns: { clerkUserId: true },
     orderBy: [asc(teamMembers.createdAt)],
@@ -128,7 +128,7 @@ export async function seedDefaultFeedbackTemplateIfMissing(
   organizationId: string,
   coachClerkUserId: string,
 ): Promise<void> {
-  const existing = await db.query.sessionFeedbackTemplates.findFirst({
+  const existing = await getDb().query.sessionFeedbackTemplates.findFirst({
     where: eq(sessionFeedbackTemplates.organizationId, organizationId),
     columns: { id: true },
   });
@@ -137,7 +137,7 @@ export async function seedDefaultFeedbackTemplateIfMissing(
     return;
   }
 
-  await db.insert(sessionFeedbackTemplates).values({
+  await getDb().insert(sessionFeedbackTemplates).values({
     organizationId,
     coachClerkUserId,
     name: DEFAULT_FEEDBACK_TEMPLATE_NAME,
@@ -148,7 +148,7 @@ export async function seedDefaultFeedbackTemplateIfMissing(
 export async function getDefaultFeedbackTemplateTree(
   organizationId: string,
 ): Promise<FeedbackTemplateTree | null> {
-  const template = await db.query.sessionFeedbackTemplates.findFirst({
+  const template = await getDb().query.sessionFeedbackTemplates.findFirst({
     where: and(
       eq(sessionFeedbackTemplates.organizationId, organizationId),
       eq(sessionFeedbackTemplates.isDefault, true),
@@ -181,14 +181,14 @@ export async function listFeedbackTemplates(
   const where = eq(sessionFeedbackTemplates.organizationId, organizationId);
 
   const [rows, totalRow] = await Promise.all([
-    db.query.sessionFeedbackTemplates.findMany({
+    getDb().query.sessionFeedbackTemplates.findMany({
       where,
       orderBy: [desc(sessionFeedbackTemplates.updatedAt)],
       limit: options.limit,
       offset: options.offset,
       with: { questions: { columns: { id: true } } },
     }),
-    db
+    getDb()
       .select({ total: count() })
       .from(sessionFeedbackTemplates)
       .where(where),
@@ -211,7 +211,7 @@ export async function getFeedbackTemplateTree(
   organizationId: string,
   templateId: string,
 ): Promise<FeedbackTemplateTree> {
-  const template = await db.query.sessionFeedbackTemplates.findFirst({
+  const template = await getDb().query.sessionFeedbackTemplates.findFirst({
     where: and(
       eq(sessionFeedbackTemplates.organizationId, organizationId),
       eq(sessionFeedbackTemplates.id, templateId),
@@ -251,7 +251,7 @@ export async function createFeedbackTemplate(
     await clearDefaultTemplate(organizationId);
   }
 
-  const [template] = await db
+  const [template] = await getDb()
     .insert(sessionFeedbackTemplates)
     .values({
       organizationId,
@@ -275,7 +275,7 @@ export async function patchFeedbackTemplate(
     await clearDefaultTemplate(organizationId, templateId);
   }
 
-  await db
+  await getDb()
     .update(sessionFeedbackTemplates)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
@@ -306,7 +306,7 @@ export async function deleteFeedbackTemplate(
     });
   }
 
-  const inUse = await db.query.sessionFeedback.findFirst({
+  const inUse = await getDb().query.sessionFeedback.findFirst({
     where: and(
       eq(sessionFeedback.organizationId, organizationId),
       eq(sessionFeedback.templateId, templateId),
@@ -323,7 +323,7 @@ export async function deleteFeedbackTemplate(
     });
   }
 
-  await db
+  await getDb()
     .delete(sessionFeedbackTemplates)
     .where(
       and(
@@ -334,7 +334,7 @@ export async function deleteFeedbackTemplate(
 }
 
 async function getNextQuestionSortOrder(templateId: string): Promise<number> {
-  const row = await db.query.feedbackQuestions.findFirst({
+  const row = await getDb().query.feedbackQuestions.findFirst({
     where: eq(feedbackQuestions.templateId, templateId),
     orderBy: [desc(feedbackQuestions.sortOrder)],
     columns: { sortOrder: true },
@@ -343,7 +343,7 @@ async function getNextQuestionSortOrder(templateId: string): Promise<number> {
 }
 
 async function assertQuestionLimit(templateId: string): Promise<void> {
-  const countRow = await db
+  const countRow = await getDb()
     .select({ total: count() })
     .from(feedbackQuestions)
     .where(eq(feedbackQuestions.templateId, templateId));
@@ -367,7 +367,7 @@ export async function createFeedbackQuestion(
   await assertQuestionLimit(templateId);
   const sortOrder = await getNextQuestionSortOrder(templateId);
 
-  await db.insert(feedbackQuestions).values({
+  await getDb().insert(feedbackQuestions).values({
     organizationId,
     templateId,
     sortOrder,
@@ -389,7 +389,7 @@ export async function patchFeedbackQuestion(
 ): Promise<FeedbackTemplateTree> {
   await getTemplateRowOrThrow(organizationId, templateId);
 
-  const question = await db.query.feedbackQuestions.findFirst({
+  const question = await getDb().query.feedbackQuestions.findFirst({
     where: and(
       eq(feedbackQuestions.organizationId, organizationId),
       eq(feedbackQuestions.templateId, templateId),
@@ -406,7 +406,7 @@ export async function patchFeedbackQuestion(
     });
   }
 
-  await db
+  await getDb()
     .update(feedbackQuestions)
     .set({
       ...(input.label !== undefined ? { label: input.label } : {}),
@@ -426,7 +426,7 @@ export async function deleteFeedbackQuestion(
 ): Promise<FeedbackTemplateTree> {
   await getTemplateRowOrThrow(organizationId, templateId);
 
-  await db
+  await getDb()
     .delete(feedbackQuestions)
     .where(
       and(
@@ -446,7 +446,7 @@ export async function reorderFeedbackQuestions(
 ): Promise<FeedbackTemplateTree> {
   await getTemplateRowOrThrow(organizationId, templateId);
 
-  const existing = await db.query.feedbackQuestions.findMany({
+  const existing = await getDb().query.feedbackQuestions.findMany({
     where: and(
       eq(feedbackQuestions.organizationId, organizationId),
       eq(feedbackQuestions.templateId, templateId),
@@ -467,7 +467,7 @@ export async function reorderFeedbackQuestions(
     });
   }
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     for (let index = 0; index < questionIds.length; index += 1) {
       await tx
         .update(feedbackQuestions)
@@ -597,7 +597,7 @@ export async function submitSessionFeedback(
   sessionLogId: string,
   input: SubmitSessionFeedbackInput,
 ): Promise<SessionFeedbackDetail> {
-  const sessionLog = await db.query.sessionLogs.findFirst({
+  const sessionLog = await getDb().query.sessionLogs.findFirst({
     where: and(
       eq(sessionLogs.organizationId, organizationId),
       eq(sessionLogs.id, sessionLogId),
@@ -634,7 +634,7 @@ export async function submitSessionFeedback(
     });
   }
 
-  const existing = await db.query.sessionFeedback.findFirst({
+  const existing = await getDb().query.sessionFeedback.findFirst({
     where: eq(sessionFeedback.sessionLogId, sessionLogId),
     columns: { id: true },
   });
@@ -652,7 +652,7 @@ export async function submitSessionFeedback(
   const questions = template?.questions ?? [];
   validateCustomResponses(questions, input.customResponses);
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(sessionFeedback)
     .values({
       organizationId,
@@ -670,7 +670,7 @@ export async function submitSessionFeedback(
     .returning();
 
   if (input.customResponses.length > 0) {
-    await db.insert(feedbackResponses).values(
+    await getDb().insert(feedbackResponses).values(
       input.customResponses.map((response) => ({
         organizationId,
         sessionFeedbackId: created.id,
@@ -682,7 +682,7 @@ export async function submitSessionFeedback(
     );
   }
 
-  const detail = await db.query.sessionFeedback.findFirst({
+  const detail = await getDb().query.sessionFeedback.findFirst({
     where: eq(sessionFeedback.id, created.id),
     with: {
       sessionLog: {
@@ -715,7 +715,7 @@ export async function getClientFeedbacksSummary(
   clientId: string,
   options: ListClientFeedbacksOptions,
 ): Promise<ClientFeedbacksSummary> {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -738,7 +738,7 @@ export async function getClientFeedbacksSummary(
   );
 
   const [rows, totalRow, lastFour] = await Promise.all([
-    db.query.sessionFeedback.findMany({
+    getDb().query.sessionFeedback.findMany({
       where,
       orderBy: [desc(sessionFeedback.submittedAt)],
       limit: options.limit,
@@ -756,8 +756,8 @@ export async function getClientFeedbacksSummary(
         },
       },
     }),
-    db.select({ total: count() }).from(sessionFeedback).where(where),
-    db.query.sessionFeedback.findMany({
+    getDb().select({ total: count() }).from(sessionFeedback).where(where),
+    getDb().query.sessionFeedback.findMany({
       where,
       orderBy: [desc(sessionFeedback.submittedAt)],
       limit: 4,
@@ -792,7 +792,7 @@ export async function listFeedbackAlerts(
   );
 
   const [rows, totalRow] = await Promise.all([
-    db.query.sessionFeedback.findMany({
+    getDb().query.sessionFeedback.findMany({
       where,
       orderBy: [desc(sessionFeedback.submittedAt)],
       limit: options.limit,
@@ -806,7 +806,7 @@ export async function listFeedbackAlerts(
         },
       },
     }),
-    db.select({ total: count() }).from(sessionFeedback).where(where),
+    getDb().select({ total: count() }).from(sessionFeedback).where(where),
   ]);
 
   return {

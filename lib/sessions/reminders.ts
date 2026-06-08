@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { TZDate } from "@date-fns/tz";
 import { addMinutes, endOfDay, startOfDay } from "date-fns";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients, programAssignments } from "@/lib/db/schema";
 import { getOrganizationPlanTier } from "@/lib/notifications/cron";
 import { dispatchNotification } from "@/lib/notifications/dispatch";
@@ -15,7 +15,7 @@ export async function processSessionReminders(
   const timezone = "Europe/Paris";
   const nowTz = new TZDate(now, timezone);
 
-  const assignments = await db.query.programAssignments.findMany({
+  const assignments = await getDb().query.programAssignments.findMany({
     where: eq(programAssignments.status, "active"),
     columns: {
       id: true,
@@ -43,7 +43,7 @@ export async function processSessionReminders(
       continue;
     }
 
-    const client = await db.query.clients.findFirst({
+    const client = await getDb().query.clients.findFirst({
       where: and(
         eq(clients.organizationId, assignment.organizationId),
         eq(clients.id, assignment.clientId),

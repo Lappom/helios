@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   foods,
   mealLogItems,
@@ -50,7 +50,7 @@ async function loadFoodsMap(
     return new Map();
   }
 
-  const rows = await db.query.foods.findMany({
+  const rows = await getDb().query.foods.findMany({
     where: inArray(foods.id, foodIds),
   });
 
@@ -73,7 +73,7 @@ async function loadRecipeData(
     return new Map();
   }
 
-  const recipeRows = await db
+  const recipeRows = await getDb()
     .select()
     .from(recipes)
     .where(
@@ -83,7 +83,7 @@ async function loadRecipeData(
       ),
     );
 
-  const ingredientRows = await db
+  const ingredientRows = await getDb()
     .select()
     .from(recipeIngredients)
     .where(
@@ -275,7 +275,7 @@ export async function getDailyNutritionSummary(
     fatG: assignment.plan.targetFatG,
   };
 
-  const logRows = await db.query.mealLogs.findMany({
+  const logRows = await getDb().query.mealLogs.findMany({
     where: and(
       eq(mealLogs.organizationId, organizationId),
       eq(mealLogs.clientId, clientId),
@@ -334,7 +334,7 @@ export async function logMeal(
   const foodMap = await loadFoodsMap(organizationId, foodIds);
   const recipeMap = await loadRecipeData(organizationId, recipeIds);
 
-  const mealLogId = await db.transaction(async (tx) => {
+  const mealLogId = await getDb().transaction(async (tx) => {
     const existing = await tx.query.mealLogs.findFirst({
       where: and(
         eq(mealLogs.organizationId, organizationId),
@@ -401,7 +401,7 @@ export async function logMeal(
     return logId!;
   });
 
-  const logRow = await db.query.mealLogs.findFirst({
+  const logRow = await getDb().query.mealLogs.findFirst({
     where: eq(mealLogs.id, mealLogId),
     with: {
       items: {

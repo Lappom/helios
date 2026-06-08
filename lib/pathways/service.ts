@@ -9,7 +9,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   coachingPathways,
   pathwayEnrollments,
@@ -44,7 +44,7 @@ async function getLastEnrollment(
   organizationId: string,
   pathwayId: string,
 ): Promise<{ at: string; status: PathwayEnrollmentStatus } | null> {
-  const row = await db.query.pathwayEnrollments.findFirst({
+  const row = await getDb().query.pathwayEnrollments.findFirst({
     where: and(
       eq(pathwayEnrollments.organizationId, organizationId),
       eq(pathwayEnrollments.pathwayId, pathwayId),
@@ -79,7 +79,7 @@ function mapListItem(
 }
 
 async function getPathwayOrThrow(organizationId: string, pathwayId: string) {
-  const row = await db.query.coachingPathways.findFirst({
+  const row = await getDb().query.coachingPathways.findFirst({
     where: and(
       eq(coachingPathways.organizationId, organizationId),
       eq(coachingPathways.id, pathwayId),
@@ -102,7 +102,7 @@ async function clearOtherAutoEnroll(
   organizationId: string,
   excludePathwayId: string,
 ): Promise<void> {
-  await db
+  await getDb()
     .update(coachingPathways)
     .set({ autoEnrollOnClientCreated: false })
     .where(
@@ -119,7 +119,7 @@ async function replaceSteps(
   pathwayId: string,
   steps: CreatePathwayInput["steps"],
 ): Promise<void> {
-  await db
+  await getDb()
     .delete(pathwaySteps)
     .where(
       and(
@@ -130,7 +130,7 @@ async function replaceSteps(
 
   if (steps.length === 0) return;
 
-  await db.insert(pathwaySteps).values(
+  await getDb().insert(pathwaySteps).values(
     steps.map((step, index) => ({
       organizationId,
       pathwayId,
@@ -158,18 +158,18 @@ export async function listPathways(
   const whereClause = and(...filters);
 
   const [rows, totalRow] = await Promise.all([
-    db.query.coachingPathways.findMany({
+    getDb().query.coachingPathways.findMany({
       where: whereClause,
       orderBy: [desc(coachingPathways.updatedAt)],
       limit: query.limit,
       offset: query.offset,
     }),
-    db.select({ value: count() }).from(coachingPathways).where(whereClause),
+    getDb().select({ value: count() }).from(coachingPathways).where(whereClause),
   ]);
 
   const items = await Promise.all(
     rows.map(async (row) => {
-      const stepRows = await db.query.pathwaySteps.findMany({
+      const stepRows = await getDb().query.pathwaySteps.findMany({
         where: eq(pathwaySteps.pathwayId, row.id),
         columns: { id: true },
       });
@@ -186,7 +186,7 @@ export async function getPathwayTree(
   pathwayId: string,
 ): Promise<PathwayTree> {
   const row = await getPathwayOrThrow(organizationId, pathwayId);
-  const stepRows = await db.query.pathwaySteps.findMany({
+  const stepRows = await getDb().query.pathwaySteps.findMany({
     where: and(
       eq(pathwaySteps.organizationId, organizationId),
       eq(pathwaySteps.pathwayId, pathwayId),
@@ -208,7 +208,7 @@ export async function createPathway(
 ): Promise<PathwayTree> {
   validatePathwaySteps(input.steps);
 
-  const [created] = await db
+  const [created] = await getDb()
     .insert(coachingPathways)
     .values({
       organizationId,
@@ -243,7 +243,7 @@ export async function patchPathway(
     await clearOtherAutoEnroll(organizationId, pathwayId);
   }
 
-  await db
+  await getDb()
     .update(coachingPathways)
     .set({
       name: input.name,
@@ -272,7 +272,7 @@ export async function deletePathway(
 ): Promise<void> {
   await getPathwayOrThrow(organizationId, pathwayId);
 
-  await db
+  await getDb()
     .delete(coachingPathways)
     .where(
       and(
@@ -290,7 +290,7 @@ export async function togglePathway(
   const existing = await getPathwayOrThrow(organizationId, pathwayId);
 
   if (isActive) {
-    const stepRows = await db.query.pathwaySteps.findMany({
+    const stepRows = await getDb().query.pathwaySteps.findMany({
       where: and(
         eq(pathwaySteps.organizationId, organizationId),
         eq(pathwaySteps.pathwayId, pathwayId),
@@ -316,7 +316,7 @@ export async function togglePathway(
     );
   }
 
-  await db
+  await getDb()
     .update(coachingPathways)
     .set({ isActive })
     .where(
@@ -327,7 +327,7 @@ export async function togglePathway(
     );
 
   if (!isActive && existing.autoEnrollOnClientCreated) {
-    await db
+    await getDb()
       .update(coachingPathways)
       .set({ autoEnrollOnClientCreated: false })
       .where(
@@ -354,7 +354,7 @@ export async function listPathwayEnrollments(
   );
 
   const [rows, totalRow] = await Promise.all([
-    db.query.pathwayEnrollments.findMany({
+    getDb().query.pathwayEnrollments.findMany({
       where: whereClause,
       orderBy: [desc(pathwayEnrollments.createdAt)],
       limit: query.limit,
@@ -372,7 +372,7 @@ export async function listPathwayEnrollments(
         },
       },
     }),
-    db
+    getDb()
       .select({ value: count() })
       .from(pathwayEnrollments)
       .where(whereClause),

@@ -1,6 +1,6 @@
 import webpush from "web-push";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { pushSubscriptions } from "@/lib/db/schema";
 import type { SendChannelResult } from "./types";
 
@@ -40,7 +40,7 @@ export async function sendPushToClient(
     return { ok: false, error: "VAPID keys are not configured." };
   }
 
-  const subscriptions = await db.query.pushSubscriptions.findMany({
+  const subscriptions = await getDb().query.pushSubscriptions.findMany({
     where: and(
       eq(pushSubscriptions.organizationId, input.organizationId),
       eq(pushSubscriptions.clientId, input.clientId),
@@ -79,7 +79,7 @@ export async function sendPushToClient(
       errors.push(message);
 
       if (message.includes("410") || message.includes("404")) {
-        await db
+        await getDb()
           .delete(pushSubscriptions)
           .where(eq(pushSubscriptions.id, subscription.id));
       }

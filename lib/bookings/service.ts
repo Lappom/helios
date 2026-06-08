@@ -11,7 +11,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   availabilityRules,
   blockedDates,
@@ -90,7 +90,7 @@ function mapBookingListItem(
 }
 
 async function getServiceForBooking(serviceId: string) {
-  const service = await db.query.coachServices.findFirst({
+  const service = await getDb().query.coachServices.findFirst({
     where: eq(coachServices.id, serviceId),
     with: {
       profile: true,
@@ -131,7 +131,7 @@ export async function getAvailability(
   organizationId: string,
   coachClerkUserId: string,
 ): Promise<AvailabilityRuleDto[]> {
-  const rows = await db.query.availabilityRules.findMany({
+  const rows = await getDb().query.availabilityRules.findMany({
     where: and(
       eq(availabilityRules.organizationId, organizationId),
       eq(availabilityRules.coachClerkUserId, coachClerkUserId),
@@ -147,7 +147,7 @@ export async function replaceAvailability(
   coachClerkUserId: string,
   input: PutAvailabilityInput,
 ): Promise<AvailabilityRuleDto[]> {
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     await tx
       .delete(availabilityRules)
       .where(
@@ -179,7 +179,7 @@ export async function listBlockedDates(
   organizationId: string,
   coachClerkUserId: string,
 ): Promise<BlockedDateDto[]> {
-  const rows = await db.query.blockedDates.findMany({
+  const rows = await getDb().query.blockedDates.findMany({
     where: and(
       eq(blockedDates.organizationId, organizationId),
       eq(blockedDates.coachClerkUserId, coachClerkUserId),
@@ -195,7 +195,7 @@ export async function addBlockedDate(
   coachClerkUserId: string,
   input: CreateBlockedDateInput,
 ): Promise<BlockedDateDto> {
-  const [created] = await db
+  const [created] = await getDb()
     .insert(blockedDates)
     .values({
       organizationId,
@@ -207,7 +207,7 @@ export async function addBlockedDate(
     .returning();
 
   if (!created) {
-    const existing = await db.query.blockedDates.findFirst({
+    const existing = await getDb().query.blockedDates.findFirst({
       where: and(
         eq(blockedDates.organizationId, organizationId),
         eq(blockedDates.coachClerkUserId, coachClerkUserId),
@@ -235,7 +235,7 @@ export async function removeBlockedDate(
   coachClerkUserId: string,
   blockedDateId: string,
 ): Promise<void> {
-  const deleted = await db
+  const deleted = await getDb()
     .delete(blockedDates)
     .where(
       and(
@@ -292,7 +292,7 @@ export async function listBookings(
   const where = buildBookingFilters(organizationId, coachClerkUserId, query);
 
   const [rows, totalRow] = await Promise.all([
-    db.query.bookings.findMany({
+    getDb().query.bookings.findMany({
       where,
       with: {
         service: { columns: { name: true } },
@@ -302,7 +302,7 @@ export async function listBookings(
       limit: query.limit,
       offset: query.offset,
     }),
-    db.select({ total: count() }).from(bookings).where(where),
+    getDb().select({ total: count() }).from(bookings).where(where),
   ]);
 
   return {
@@ -315,7 +315,7 @@ export async function listClientBookings(
   organizationId: string,
   clientId: string,
 ): Promise<BookingListItem[]> {
-  const rows = await db.query.bookings.findMany({
+  const rows = await getDb().query.bookings.findMany({
     where: and(
       eq(bookings.organizationId, organizationId),
       eq(bookings.clientId, clientId),
@@ -336,7 +336,7 @@ export async function getBookingById(
   organizationId: string,
   bookingId: string,
 ): Promise<BookingDetail> {
-  const row = await db.query.bookings.findFirst({
+  const row = await getDb().query.bookings.findFirst({
     where: and(
       eq(bookings.id, bookingId),
       eq(bookings.organizationId, organizationId),
@@ -374,13 +374,13 @@ async function loadSlotContext(
   to: string,
 ) {
   const [rules, blocked, existing] = await Promise.all([
-    db.query.availabilityRules.findMany({
+    getDb().query.availabilityRules.findMany({
       where: and(
         eq(availabilityRules.organizationId, organizationId),
         eq(availabilityRules.coachClerkUserId, coachClerkUserId),
       ),
     }),
-    db.query.blockedDates.findMany({
+    getDb().query.blockedDates.findMany({
       where: and(
         eq(blockedDates.organizationId, organizationId),
         eq(blockedDates.coachClerkUserId, coachClerkUserId),
@@ -388,7 +388,7 @@ async function loadSlotContext(
         lte(blockedDates.date, to),
       ),
     }),
-    db.query.bookings.findMany({
+    getDb().query.bookings.findMany({
       where: and(
         eq(bookings.organizationId, organizationId),
         eq(bookings.coachClerkUserId, coachClerkUserId),
@@ -516,7 +516,7 @@ export async function createBooking(
   }
 
   try {
-    const [created] = await db
+    const [created] = await getDb()
       .insert(bookings)
       .values({
         organizationId: service.organizationId,
@@ -559,7 +559,7 @@ export async function cancelBooking(
   },
   input: CancelBookingInput,
 ): Promise<BookingDetail> {
-  const booking = await db.query.bookings.findFirst({
+  const booking = await getDb().query.bookings.findFirst({
     where: and(
       eq(bookings.id, bookingId),
       eq(bookings.organizationId, organizationId),
@@ -610,7 +610,7 @@ export async function cancelBooking(
     }
   }
 
-  await db
+  await getDb()
     .update(bookings)
     .set({
       status: "cancelled",
@@ -627,7 +627,7 @@ export async function patchBookingStatus(
   bookingId: string,
   input: PatchBookingStatusInput,
 ): Promise<BookingDetail> {
-  const updated = await db
+  const updated = await getDb()
     .update(bookings)
     .set({
       status: input.status,

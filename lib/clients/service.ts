@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   clientNotes,
   clients,
@@ -85,7 +85,7 @@ async function loadTagsForClients(
     return tagMap;
   }
 
-  const rows = await db
+  const rows = await getDb()
     .select({
       clientId: clientTagAssignments.clientId,
       tagId: clientTags.id,
@@ -138,13 +138,13 @@ export async function listClients(
   const where = buildClientWhere(organizationId, options);
 
   const [rows, totalResult] = await Promise.all([
-    db.query.clients.findMany({
+    getDb().query.clients.findMany({
       where,
       orderBy: [desc(clients.updatedAt)],
       limit: options.limit,
       offset: options.offset,
     }),
-    db.select({ value: count() }).from(clients).where(where),
+    getDb().select({ value: count() }).from(clients).where(where),
   ]);
 
   const tagMap = await loadTagsForClients(
@@ -172,7 +172,7 @@ export async function getClientOrThrow(
   organizationId: string,
   clientId: string,
 ): Promise<typeof clients.$inferSelect> {
-  const client = await db.query.clients.findFirst({
+  const client = await getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.id, clientId),
@@ -198,14 +198,14 @@ export async function getClientDetail(
   const client = await getClientOrThrow(organizationId, clientId);
 
   const [notes, statusEvents, tagMap] = await Promise.all([
-    db.query.clientNotes.findMany({
+    getDb().query.clientNotes.findMany({
       where: and(
         eq(clientNotes.organizationId, organizationId),
         eq(clientNotes.clientId, clientId),
       ),
       orderBy: [desc(clientNotes.createdAt)],
     }),
-    db.query.clientStatusEvents.findMany({
+    getDb().query.clientStatusEvents.findMany({
       where: and(
         eq(clientStatusEvents.organizationId, organizationId),
         eq(clientStatusEvents.clientId, clientId),
@@ -270,7 +270,7 @@ export async function findClientByEmail(
   organizationId: string,
   email: string,
 ) {
-  return db.query.clients.findFirst({
+  return getDb().query.clients.findFirst({
     where: and(
       eq(clients.organizationId, organizationId),
       eq(clients.email, email.toLowerCase()),
@@ -290,7 +290,7 @@ export async function createClient(
   const status = input.status ?? "PROSPECT";
 
   try {
-    const [created] = await db
+    const [created] = await getDb()
       .insert(clients)
       .values({
         organizationId,
@@ -386,7 +386,7 @@ export async function updateClientStatus(
 
   const now = new Date();
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     await tx
       .update(clients)
       .set({ status, updatedAt: now })
@@ -432,7 +432,7 @@ export async function addClientNote(
 ) {
   await getClientOrThrow(organizationId, clientId);
 
-  const [note] = await db
+  const [note] = await getDb()
     .insert(clientNotes)
     .values({
       organizationId,
@@ -451,7 +451,7 @@ export async function listClientNotes(
 ) {
   await getClientOrThrow(organizationId, clientId);
 
-  return db.query.clientNotes.findMany({
+  return getDb().query.clientNotes.findMany({
     where: and(
       eq(clientNotes.organizationId, organizationId),
       eq(clientNotes.clientId, clientId),
@@ -477,7 +477,7 @@ export async function addClientTag(
     });
   }
 
-  const [existingTag] = await db
+  const [existingTag] = await getDb()
     .select()
     .from(clientTags)
     .where(
@@ -491,13 +491,13 @@ export async function addClientTag(
   const tag =
     existingTag ??
     (
-      await db
+      await getDb()
         .insert(clientTags)
         .values({ organizationId, name, color: color ?? null })
         .returning()
     )[0]!;
 
-  const existingAssignment = await db.query.clientTagAssignments.findFirst({
+  const existingAssignment = await getDb().query.clientTagAssignments.findFirst({
     where: and(
       eq(clientTagAssignments.organizationId, organizationId),
       eq(clientTagAssignments.clientId, clientId),
@@ -507,7 +507,7 @@ export async function addClientTag(
   });
 
   if (!existingAssignment) {
-    await db.insert(clientTagAssignments).values({
+    await getDb().insert(clientTagAssignments).values({
       organizationId,
       clientId,
       tagId: tag.id,
@@ -525,7 +525,7 @@ export async function addClientTagById(
 ): Promise<ClientListItem["tags"]> {
   await getClientOrThrow(organizationId, clientId);
 
-  const tag = await db.query.clientTags.findFirst({
+  const tag = await getDb().query.clientTags.findFirst({
     where: and(
       eq(clientTags.organizationId, organizationId),
       eq(clientTags.id, tagId),
@@ -542,7 +542,7 @@ export async function addClientTagById(
     });
   }
 
-  const existingAssignment = await db.query.clientTagAssignments.findFirst({
+  const existingAssignment = await getDb().query.clientTagAssignments.findFirst({
     where: and(
       eq(clientTagAssignments.organizationId, organizationId),
       eq(clientTagAssignments.clientId, clientId),
@@ -552,7 +552,7 @@ export async function addClientTagById(
   });
 
   if (!existingAssignment) {
-    await db.insert(clientTagAssignments).values({
+    await getDb().insert(clientTagAssignments).values({
       organizationId,
       clientId,
       tagId,
@@ -572,7 +572,7 @@ export async function setClientTags(
 
   const uniqueNames = [...new Set(input.tagNames.map((name) => name.trim()))];
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     await tx
       .delete(clientTagAssignments)
       .where(
@@ -667,7 +667,7 @@ export async function importClientsFromCsv(
 export async function listAllClientsForKanban(
   organizationId: string,
 ): Promise<ClientListItem[]> {
-  const rows = await db.query.clients.findMany({
+  const rows = await getDb().query.clients.findMany({
     where: eq(clients.organizationId, organizationId),
     orderBy: [asc(clients.lastName), asc(clients.firstName)],
   });

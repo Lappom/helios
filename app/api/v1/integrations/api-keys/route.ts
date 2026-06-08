@@ -1,5 +1,6 @@
 import { withApiHandler, jsonOk } from "@/lib/api/handler";
 import { requireCoachRead, requireCoachWrite } from "@/lib/api/require-coach";
+import { logAuditEvent } from "@/lib/audit/service";
 import { createApiKey, listApiKeys } from "@/lib/integrations/api-keys";
 import { parseJsonBody } from "@/lib/validators/clients";
 import { createApiKeySchema } from "@/lib/validators/integrations";
@@ -23,6 +24,16 @@ export const POST = withApiHandler(
       org.clerkUserId,
       body,
     );
+
+    await logAuditEvent({
+      organizationId: org.organizationId,
+      actor: { type: "coach", clerkUserId: org.clerkUserId },
+      action: "api_key.create",
+      resourceType: "api_key",
+      resourceId: created.id,
+      request,
+    });
+
     return jsonOk(created, { status: 201 });
   },
 );

@@ -10,7 +10,7 @@ import {
   sql,
   type SQL,
 } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   foods,
   mealItems,
@@ -53,7 +53,7 @@ export type ListNutritionPlansOptions = {
 type FoodRow = typeof foods.$inferSelect;
 
 async function getPlanRowOrThrow(organizationId: string, planId: string) {
-  const plan = await db.query.nutritionPlans.findFirst({
+  const plan = await getDb().query.nutritionPlans.findFirst({
     where: and(
       eq(nutritionPlans.organizationId, organizationId),
       eq(nutritionPlans.id, planId),
@@ -113,7 +113,7 @@ async function loadFoodsMap(
     return new Map();
   }
 
-  const rows = await db
+  const rows = await getDb()
     .select()
     .from(foods)
     .where(
@@ -142,7 +142,7 @@ async function loadRecipeIngredientsMap(
     return new Map();
   }
 
-  const recipeRows = await db
+  const recipeRows = await getDb()
     .select()
     .from(recipes)
     .where(
@@ -152,7 +152,7 @@ async function loadRecipeIngredientsMap(
       ),
     );
 
-  const ingredientRows = await db
+  const ingredientRows = await getDb()
     .select()
     .from(recipeIngredients)
     .where(
@@ -245,7 +245,7 @@ async function computeItemMacros(
 }
 
 async function fetchPlanRaw(organizationId: string, planId: string) {
-  return db.query.nutritionPlans.findFirst({
+  return getDb().query.nutritionPlans.findFirst({
     where: and(
       eq(nutritionPlans.organizationId, organizationId),
       eq(nutritionPlans.id, planId),
@@ -346,7 +346,7 @@ async function mapPlanTree(
 }
 
 async function getNextMealSortOrder(planId: string) {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ max: sql<number>`coalesce(max(${meals.sortOrder}), -1)` })
     .from(meals)
     .where(eq(meals.planId, planId));
@@ -354,7 +354,7 @@ async function getNextMealSortOrder(planId: string) {
 }
 
 async function getNextItemSortOrder(mealId: string) {
-  const [row] = await db
+  const [row] = await getDb()
     .select({ max: sql<number>`coalesce(max(${mealItems.sortOrder}), -1)` })
     .from(mealItems)
     .where(eq(mealItems.mealId, mealId));
@@ -367,7 +367,7 @@ async function reorderByIds(
   parentFilter: SQL,
   ids: string[],
 ) {
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     for (let index = 0; index < ids.length; index++) {
       await tx
         .update(table)
@@ -400,7 +400,7 @@ export async function listNutritionPlans(
   const where = and(...filters);
 
   const [rows, [totalRow]] = await Promise.all([
-    db
+    getDb()
       .select({
         id: nutritionPlans.id,
         name: nutritionPlans.name,
@@ -423,7 +423,7 @@ export async function listNutritionPlans(
       .orderBy(desc(nutritionPlans.updatedAt))
       .limit(options.limit)
       .offset(options.offset),
-    db.select({ total: count() }).from(nutritionPlans).where(where),
+    getDb().select({ total: count() }).from(nutritionPlans).where(where),
   ]);
 
   return {
@@ -437,7 +437,7 @@ export async function createNutritionPlan(
   coachClerkUserId: string,
   input: CreateNutritionPlanInput,
 ): Promise<NutritionPlanTree> {
-  const planId = await db.transaction(async (tx) => {
+  const planId = await getDb().transaction(async (tx) => {
     const [plan] = await tx
       .insert(nutritionPlans)
       .values({
@@ -491,7 +491,7 @@ export async function patchNutritionPlan(
 ): Promise<NutritionPlanTree> {
   await getPlanRowOrThrow(organizationId, planId);
 
-  await db
+  await getDb()
     .update(nutritionPlans)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
@@ -532,7 +532,7 @@ export async function publishNutritionPlan(
     });
   }
 
-  await db
+  await getDb()
     .update(nutritionPlans)
     .set({ status: "published", publishedAt: new Date() })
     .where(
@@ -560,7 +560,7 @@ export async function unpublishNutritionPlan(
     });
   }
 
-  await db
+  await getDb()
     .update(nutritionPlans)
     .set({ status: "draft", publishedAt: null })
     .where(
@@ -583,7 +583,7 @@ export async function createMeal(
 
   const sortOrder = await getNextMealSortOrder(planId);
 
-  await db.insert(meals).values({
+  await getDb().insert(meals).values({
     organizationId,
     planId,
     sortOrder,
@@ -603,7 +603,7 @@ export async function patchMeal(
   const plan = await getPlanRowOrThrow(organizationId, planId);
   assertPlanStructureEditable(plan);
 
-  const meal = await db.query.meals.findFirst({
+  const meal = await getDb().query.meals.findFirst({
     where: and(
       eq(meals.organizationId, organizationId),
       eq(meals.planId, planId),
@@ -620,7 +620,7 @@ export async function patchMeal(
     });
   }
 
-  await db
+  await getDb()
     .update(meals)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
@@ -639,7 +639,7 @@ export async function deleteMeal(
   const plan = await getPlanRowOrThrow(organizationId, planId);
   assertPlanStructureEditable(plan);
 
-  await db
+  await getDb()
     .delete(meals)
     .where(
       and(
@@ -671,7 +671,7 @@ export async function reorderMeals(
 }
 
 async function assertFoodAccessible(organizationId: string, foodId: string) {
-  const food = await db.query.foods.findFirst({
+  const food = await getDb().query.foods.findFirst({
     where: and(eq(foods.id, foodId), buildFoodVisibilityCondition(organizationId)),
   });
 
@@ -689,7 +689,7 @@ async function assertRecipeAccessible(
   organizationId: string,
   recipeId: string,
 ) {
-  const recipe = await db.query.recipes.findFirst({
+  const recipe = await getDb().query.recipes.findFirst({
     where: and(
       eq(recipes.organizationId, organizationId),
       eq(recipes.id, recipeId),
@@ -715,7 +715,7 @@ export async function createMealItem(
   const plan = await getPlanRowOrThrow(organizationId, planId);
   assertPlanStructureEditable(plan);
 
-  const meal = await db.query.meals.findFirst({
+  const meal = await getDb().query.meals.findFirst({
     where: and(
       eq(meals.organizationId, organizationId),
       eq(meals.planId, planId),
@@ -742,7 +742,7 @@ export async function createMealItem(
 
   const sortOrder = await getNextItemSortOrder(mealId);
 
-  await db.insert(mealItems).values({
+  await getDb().insert(mealItems).values({
     organizationId,
     mealId,
     itemType: input.itemType,
@@ -766,7 +766,7 @@ export async function patchMealItem(
   const plan = await getPlanRowOrThrow(organizationId, planId);
   assertPlanStructureEditable(plan);
 
-  const item = await db.query.mealItems.findFirst({
+  const item = await getDb().query.mealItems.findFirst({
     where: and(
       eq(mealItems.organizationId, organizationId),
       eq(mealItems.mealId, mealId),
@@ -783,7 +783,7 @@ export async function patchMealItem(
     });
   }
 
-  await db
+  await getDb()
     .update(mealItems)
     .set({
       ...(input.quantity !== undefined ? { quantity: input.quantity } : {}),
@@ -803,7 +803,7 @@ export async function deleteMealItem(
   const plan = await getPlanRowOrThrow(organizationId, planId);
   assertPlanStructureEditable(plan);
 
-  await db
+  await getDb()
     .delete(mealItems)
     .where(
       and(

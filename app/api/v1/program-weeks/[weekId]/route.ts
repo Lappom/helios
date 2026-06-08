@@ -1,7 +1,7 @@
 import { withApiHandler, jsonOk } from "@/lib/api/handler";
 import { getProgramWeekIdFromPath } from "@/lib/api/program-route";
 import { requireCoachWrite } from "@/lib/api/require-coach";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { programWeeks } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { problem } from "@/lib/api/response";
@@ -17,7 +17,7 @@ export const PATCH = withApiHandler(
     const weekId = getProgramWeekIdFromPath(request);
     const body = await parseJsonBody(patchWeekSchema, request);
 
-    const week = await db.query.programWeeks.findFirst({
+    const week = await getDb().query.programWeeks.findFirst({
       where: and(
         eq(programWeeks.organizationId, org.organizationId),
         eq(programWeeks.id, weekId),
