@@ -79,4 +79,14 @@ export const SYSTEM_NOTIFICATION_TEMPLATES: SystemTemplateSeed[] = [
     isActive: true,
     isSystem: true,
   },
+  {
+    name: "Document partagé",
+    channel: "push",
+    subject: "Nouveau document",
+    content: "Votre coach vient de partager un document avec vous.",
+    trigger: "event",
+    eventType: "drive_file_shared",
+    isActive: true,
+    isSystem: true,
+  },
 ];

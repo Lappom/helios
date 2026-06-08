@@ -315,3 +315,81 @@ export async function putMessageMedia(
 export async function getMessageMediaBlob(pathname: string) {
   return get(pathname, { access: "private" });
 }
+
+export const ALLOWED_DRIVE_MIME_TYPES = [
+  ...ALLOWED_PHOTO_MIME_TYPES,
+  ...ALLOWED_VIDEO_MIME_TYPES,
+  "application/pdf",
+  "text/plain",
+] as const;
+
+export function assertDriveUploadAllowed(
+  planTier: PlanTier,
+  file: File,
+  orgStorageUsedBytes: number,
+): void {
+  if (
+    !ALLOWED_DRIVE_MIME_TYPES.includes(
+      file.type as (typeof ALLOWED_DRIVE_MIME_TYPES)[number],
+    )
+  ) {
+    throw problem({
+      type: "validation-error",
+      title: "Unsupported file format",
+      status: 400,
+      detail: "Allowed formats: JPEG, PNG, WebP, MP4, MOV, WebM, PDF, TXT.",
+    });
+  }
+
+  const maxFileBytes = getPlanLimit(planTier, "driveFile");
+  if (file.size > maxFileBytes) {
+    throw problem({
+      type: "quota-exceeded",
+      title: "File too large",
+      status: 413,
+      detail: `Maximum file size for your plan is ${Math.round(maxFileBytes / (1024 * 1024))} MB.`,
+    });
+  }
+
+  const maxStorageBytes = getPlanLimit(planTier, "driveStorage");
+  if (orgStorageUsedBytes + file.size > maxStorageBytes) {
+    throw problem({
+      type: "quota-exceeded",
+      title: "Storage quota exceeded",
+      status: 413,
+      detail: "Your organization has reached its drive storage limit.",
+    });
+  }
+}
+
+export async function putDriveFile(
+  file: File,
+  params: { organizationId: string; fileId: string },
+): Promise<{ pathname: string; mimeType: string; fileName: string }> {
+  const extension = extensionForMime(
+    file.type,
+    [
+      PHOTO_MIME_TO_EXTENSION,
+      VIDEO_MIME_TO_EXTENSION,
+      FILE_MIME_TO_EXTENSION,
+    ],
+    "bin",
+  );
+  const pathname = `drive/${params.organizationId}/${params.fileId}.${extension}`;
+
+  await put(pathname, file, {
+    access: "private",
+    addRandomSuffix: false,
+    contentType: file.type,
+  });
+
+  return {
+    pathname,
+    mimeType: file.type,
+    fileName: file.name,
+  };
+}
+
+export async function getDriveFileBlob(pathname: string) {
+  return get(pathname, { access: "private" });
+}

@@ -8,6 +8,7 @@ import {
   teamMembers,
 } from "@/lib/db/schema";
 import type {
+  DriveFileSharedPayload,
   HeliosEventName,
   HeliosEventPayload,
   PaymentReceivedPayload,
@@ -288,6 +289,29 @@ export async function handleHeliosNotificationEvent<
           clientName: `${client.firstName} ${client.lastName}`.trim(),
         },
         idempotencyKey,
+      );
+      return;
+    }
+    case "drive.file.shared": {
+      const drivePayload = payload as DriveFileSharedPayload;
+      const client = await db.query.clients.findFirst({
+        where: and(
+          eq(clients.organizationId, drivePayload.organizationId),
+          eq(clients.id, drivePayload.clientId),
+        ),
+        columns: { id: true, email: true },
+      });
+
+      if (!client) {
+        return;
+      }
+
+      await dispatchEventNotification(
+        drivePayload.organizationId,
+        "drive_file_shared",
+        [{ clientId: client.id, email: client.email }],
+        { url: "/client/drive" },
+        `drive.file.shared:${drivePayload.shareId}`,
       );
       return;
     }

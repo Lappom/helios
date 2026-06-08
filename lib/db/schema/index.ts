@@ -71,6 +71,7 @@ import {
   conversations,
   messages,
 } from "./messaging";
+import { driveFiles, driveFolders, driveShares } from "./drive";
 
 export * from "./enums";
 export * from "./organization";
@@ -90,6 +91,7 @@ export * from "./promo-codes";
 export * from "./payments";
 export * from "./notifications";
 export * from "./messaging";
+export * from "./drive";
 
 export const organizationsRelations = relations(
   organizations,
@@ -128,6 +130,9 @@ export const organizationsRelations = relations(
     conversations: many(conversations),
     conversationParticipants: many(conversationParticipants),
     messages: many(messages),
+    driveFolders: many(driveFolders),
+    driveFiles: many(driveFiles),
+    driveShares: many(driveShares),
   }),
 );
 
@@ -157,6 +162,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   pushSubscriptions: many(pushSubscriptions),
   conversations: many(conversations),
   conversationParticipants: many(conversationParticipants),
+  driveShares: many(driveShares),
 }));
 
 export const clientNotesRelations = relations(clientNotes, ({ one }) => ({
@@ -986,5 +992,54 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   conversation: one(conversations, {
     fields: [messages.conversationId],
     references: [conversations.id],
+  }),
+}));
+
+export const driveFoldersRelations = relations(
+  driveFolders,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [driveFolders.organizationId],
+      references: [organizations.id],
+    }),
+    parent: one(driveFolders, {
+      fields: [driveFolders.parentId],
+      references: [driveFolders.id],
+      relationName: "driveFolderParent",
+    }),
+    children: many(driveFolders, { relationName: "driveFolderParent" }),
+    files: many(driveFiles),
+    shares: many(driveShares),
+  }),
+);
+
+export const driveFilesRelations = relations(driveFiles, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [driveFiles.organizationId],
+    references: [organizations.id],
+  }),
+  folder: one(driveFolders, {
+    fields: [driveFiles.folderId],
+    references: [driveFolders.id],
+  }),
+  shares: many(driveShares),
+}));
+
+export const driveSharesRelations = relations(driveShares, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [driveShares.organizationId],
+    references: [organizations.id],
+  }),
+  file: one(driveFiles, {
+    fields: [driveShares.fileId],
+    references: [driveFiles.id],
+  }),
+  folder: one(driveFolders, {
+    fields: [driveShares.folderId],
+    references: [driveFolders.id],
+  }),
+  client: one(clients, {
+    fields: [driveShares.clientId],
+    references: [clients.id],
   }),
 }));

@@ -5,6 +5,7 @@ import {
   Apple,
   Calendar,
   Flame,
+  FolderOpen,
   Home,
   MessageSquare,
   TrendingUp,
@@ -31,6 +32,7 @@ const navItems: NavItem[] = [
   { href: "/client/habits", label: "Habitudes", icon: Flame, feature: "habits" },
   { href: "/client/progress", label: "Progrès", icon: TrendingUp },
   { href: "/client/messages", label: "Messages", icon: MessageSquare },
+  { href: "/client/drive", label: "Documents", icon: FolderOpen },
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {

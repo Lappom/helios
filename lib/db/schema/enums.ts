@@ -179,6 +179,7 @@ export const notificationEventTypeEnum = pgEnum("notification_event_type", [
   "payment_received",
   "message_new",
   "program_published",
+  "drive_file_shared",
 ]);
 
 export const notificationLogStatusEnum = pgEnum("notification_log_status", [
@@ -205,4 +206,8 @@ export const messageTypeEnum = pgEnum("message_type", [
   "video",
   "audio",
   "file",
+]);
+
+export const driveSharePermissionEnum = pgEnum("drive_share_permission", [
+  "read",
 ]);
