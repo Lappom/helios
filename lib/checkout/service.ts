@@ -5,15 +5,25 @@ import { createBooking } from "@/lib/bookings/service";
 import { createClient, findClientByEmail } from "@/lib/clients/service";
 import { inviteClientToPortal } from "@/lib/clients/invite";
 import { db } from "@/lib/db";
-import { bookings, coachServices } from "@/lib/db/schema";
+import { bookings, coachServices, referralCodes } from "@/lib/db/schema";
 import { emitHeliosEvent } from "@/lib/events/emit-event";
 import { assignProgram } from "@/lib/programs/assignments";
 import {
   incrementPromoRedemption,
   validatePromoCode,
 } from "@/lib/promo-codes/service";
+import {
+  applyReferralCreditToPrice,
+  estimateCommissionCents,
+  getReferralCreditBalance,
+  recordPendingConversion,
+  validateReferralCode,
+} from "@/lib/referrals/service";
 import type { CreateCheckoutBookingInput } from "@/lib/validators/checkout";
-import { normalizePromoCode } from "@/lib/validators/checkout";
+import {
+  normalizePromoCode,
+  normalizeReferralCode,
+} from "@/lib/validators/checkout";
 
 const SHOP_ELIGIBLE_PLANS: PlanTier[] = ["PRO", "BUSINESS", "TEAM"];
 
@@ -25,11 +35,20 @@ export type CheckoutResult = {
   programAssigned: boolean;
   originalPriceCents: number;
   discountCents: number;
+  referralCreditAppliedCents: number;
   finalPriceCents: number;
   paymentInstructions: string | null;
   coachName: string;
   coachSlug: string;
   serviceName: string;
+};
+
+type CheckoutPricing = {
+  promoCodeId: string | null;
+  referralCodeId: string | null;
+  discountCents: number;
+  referralCreditAppliedCents: number;
+  finalPriceCents: number;
 };
 
 function parseProspectName(name: string): {
@@ -92,16 +111,96 @@ async function loadCheckoutService(serviceId: string) {
   return service;
 }
 
+async function resolveCheckoutPricing(
+  organizationId: string,
+  serviceId: string,
+  priceCents: number,
+  input: CreateCheckoutBookingInput,
+): Promise<CheckoutPricing> {
+  let promoCodeId: string | null = null;
+  let referralCodeId: string | null = null;
+  let discountCents = 0;
+  let priceAfterDiscount = priceCents;
+
+  if (input.promoCode) {
+    const validation = await validatePromoCode(
+      organizationId,
+      serviceId,
+      normalizePromoCode(input.promoCode),
+      priceCents,
+    );
+
+    if (!validation.valid) {
+      throw problem({
+        type: "validation-error",
+        title: "Invalid promo code",
+        status: 400,
+        detail: validation.reason ?? "This promo code cannot be applied.",
+      });
+    }
+
+    promoCodeId = validation.promoCodeId ?? null;
+    discountCents = validation.discountCents;
+    priceAfterDiscount = validation.finalPriceCents;
+  } else if (input.referralCode) {
+    const validation = await validateReferralCode(
+      organizationId,
+      serviceId,
+      normalizeReferralCode(input.referralCode),
+      priceCents,
+      input.prospectEmail,
+    );
+
+    if (!validation.valid) {
+      throw problem({
+        type: "validation-error",
+        title: "Invalid referral code",
+        status: 400,
+        detail: validation.reason ?? "This referral code cannot be applied.",
+      });
+    }
+
+    referralCodeId = validation.referralCodeId ?? null;
+    discountCents = validation.discountCents;
+    priceAfterDiscount = validation.finalPriceCents;
+  }
+
+  let referralCreditAppliedCents = 0;
+  let finalPriceCents = priceAfterDiscount;
+
+  const existingClient = await findClientByEmail(
+    organizationId,
+    input.prospectEmail,
+  );
+
+  if (existingClient) {
+    const balanceCents = await getReferralCreditBalance(
+      organizationId,
+      existingClient.id,
+    );
+    const creditResult = applyReferralCreditToPrice(
+      priceAfterDiscount,
+      balanceCents,
+    );
+    referralCreditAppliedCents = creditResult.creditAppliedCents;
+    finalPriceCents = creditResult.finalPriceCents;
+  }
+
+  return {
+    promoCodeId,
+    referralCodeId,
+    discountCents,
+    referralCreditAppliedCents,
+    finalPriceCents,
+  };
+}
+
 async function createNonScheduledBooking(
   service: typeof coachServices.$inferSelect & {
     profile: { clerkUserId: string; timezone: string };
   },
   input: CreateCheckoutBookingInput,
-  pricing: {
-    promoCodeId: string | null;
-    discountCents: number;
-    finalPriceCents: number;
-  },
+  pricing: CheckoutPricing,
 ) {
   const timezone = service.profile.timezone ?? "Europe/Paris";
   const startAt = new Date(Date.now() + Math.floor(Math.random() * 60_000));
@@ -124,7 +223,9 @@ async function createNonScheduledBooking(
       paymentStatus: "unpaid",
       notes: input.notes ?? null,
       promoCodeId: pricing.promoCodeId,
+      referralCodeId: pricing.referralCodeId,
       discountCents: pricing.discountCents,
+      referralCreditAppliedCents: pricing.referralCreditAppliedCents,
       finalPriceCents: pricing.finalPriceCents,
     })
     .returning();
@@ -148,33 +249,12 @@ export async function completeCheckoutBooking(
     });
   }
 
-  let promoCodeId: string | null = null;
-  let discountCents = 0;
-  let finalPriceCents = service.priceCents;
-
-  if (input.promoCode) {
-    const validation = await validatePromoCode(
-      service.organizationId,
-      service.id,
-      normalizePromoCode(input.promoCode),
-      service.priceCents,
-    );
-
-    if (!validation.valid) {
-      throw problem({
-        type: "validation-error",
-        title: "Invalid promo code",
-        status: 400,
-        detail: validation.reason ?? "This promo code cannot be applied.",
-      });
-    }
-
-    promoCodeId = validation.promoCodeId ?? null;
-    discountCents = validation.discountCents;
-    finalPriceCents = validation.finalPriceCents;
-  }
-
-  const pricing = { promoCodeId, discountCents, finalPriceCents };
+  const pricing = await resolveCheckoutPricing(
+    service.organizationId,
+    service.id,
+    service.priceCents,
+    input,
+  );
 
   let bookingId: string;
 
@@ -195,7 +275,9 @@ export async function completeCheckoutBooking(
       .update(bookings)
       .set({
         promoCodeId: pricing.promoCodeId,
+        referralCodeId: pricing.referralCodeId,
         discountCents: pricing.discountCents,
+        referralCreditAppliedCents: pricing.referralCreditAppliedCents,
         finalPriceCents: pricing.finalPriceCents,
       })
       .where(eq(bookings.id, bookingId));
@@ -235,8 +317,35 @@ export async function completeCheckoutBooking(
     .set({ clientId })
     .where(eq(bookings.id, bookingId));
 
-  if (promoCodeId) {
-    await incrementPromoRedemption(service.organizationId, promoCodeId);
+  if (pricing.promoCodeId) {
+    await incrementPromoRedemption(
+      service.organizationId,
+      pricing.promoCodeId,
+    );
+  }
+
+  if (pricing.referralCodeId) {
+    const referralCode = await db.query.referralCodes.findFirst({
+      where: eq(referralCodes.id, pricing.referralCodeId),
+    });
+
+    if (referralCode) {
+      const commissionCents = await estimateCommissionCents(
+        service.organizationId,
+        pricing.referralCodeId,
+        pricing.finalPriceCents,
+      );
+
+      await recordPendingConversion({
+        organizationId: service.organizationId,
+        referralCodeId: pricing.referralCodeId,
+        referrerClientId: referralCode.clientId,
+        referredClientId: clientId,
+        bookingId,
+        refereeDiscountCents: pricing.discountCents,
+        commissionCents,
+      });
+    }
   }
 
   let programAssigned = false;
@@ -283,8 +392,9 @@ export async function completeCheckoutBooking(
     invitationSent,
     programAssigned,
     originalPriceCents: service.priceCents,
-    discountCents,
-    finalPriceCents,
+    discountCents: pricing.discountCents,
+    referralCreditAppliedCents: pricing.referralCreditAppliedCents,
+    finalPriceCents: pricing.finalPriceCents,
     paymentInstructions: service.paymentInstructions,
     coachName: profile.displayName,
     coachSlug: profile.slug,
@@ -302,5 +412,20 @@ export async function validateCheckoutPromoCode(
     service.id,
     code,
     service.priceCents,
+  );
+}
+
+export async function validateCheckoutReferralCode(
+  serviceId: string,
+  code: string,
+  prospectEmail?: string,
+) {
+  const service = await loadCheckoutService(serviceId);
+  return validateReferralCode(
+    service.organizationId,
+    service.id,
+    code,
+    service.priceCents,
+    prospectEmail,
   );
 }

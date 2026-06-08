@@ -4,6 +4,7 @@ import { getPublicServiceById } from "@/lib/coach-profile/service";
 
 type CheckoutPageProps = {
   params: Promise<{ serviceId: string }>;
+  searchParams: Promise<{ ref?: string }>;
 };
 
 export async function generateMetadata({ params }: CheckoutPageProps) {
@@ -19,8 +20,12 @@ export async function generateMetadata({ params }: CheckoutPageProps) {
   }
 }
 
-export default async function CheckoutPage({ params }: CheckoutPageProps) {
+export default async function CheckoutPage({
+  params,
+  searchParams,
+}: CheckoutPageProps) {
   const { serviceId } = await params;
+  const { ref } = await searchParams;
 
   let checkoutData;
   try {
@@ -37,6 +42,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
       coachName={coachName}
       service={service}
       backHref={`/find/coaches/${coachSlug}`}
+      initialReferralCode={ref}
     />
   );
 }

@@ -5,6 +5,7 @@ import { getOrgContext } from "@/lib/auth/org-context";
 import { getClientIdForUser } from "@/lib/api/require-client";
 import { hasFeature } from "@/lib/billing/access";
 import { getClientHabitsSummary } from "@/lib/habits/service";
+import { getClientReferralInfo } from "@/lib/referrals/service";
 import { addDays, startOfWeekMonday } from "@/lib/programs/schedule";
 import { getEnrichedSchedule } from "@/lib/sessions/service";
 
@@ -26,6 +27,7 @@ export default async function ClientPortalPage() {
 
   let schedule;
   let habitsSummary = null;
+  let referral = null;
   let hasActiveProgram = true;
 
   try {
@@ -38,9 +40,15 @@ export default async function ClientPortalPage() {
       end: weekEnd,
     });
 
-    const habitsEnabled = await hasFeature("habits");
+    const [habitsEnabled, referralEnabled] = await Promise.all([
+      hasFeature("habits"),
+      hasFeature("referral_program"),
+    ]);
     habitsSummary = habitsEnabled
       ? await getClientHabitsSummary(org.organizationId, clientId)
+      : null;
+    referral = referralEnabled
+      ? await getClientReferralInfo(org.organizationId, clientId)
       : null;
   } catch {
     hasActiveProgram = false;
@@ -61,6 +69,10 @@ export default async function ClientPortalPage() {
   }
 
   return (
-    <ClientHomeContent schedule={schedule!} habitsSummary={habitsSummary} />
+    <ClientHomeContent
+      schedule={schedule!}
+      habitsSummary={habitsSummary}
+      referral={referral}
+    />
   );
 }

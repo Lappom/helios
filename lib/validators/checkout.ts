@@ -4,14 +4,25 @@ export const PROMO_DISCOUNT_TYPES = ["percent", "fixed"] as const;
 export type PromoDiscountType = (typeof PROMO_DISCOUNT_TYPES)[number];
 export const promoDiscountTypeSchema = z.enum(PROMO_DISCOUNT_TYPES);
 
-export const createCheckoutBookingSchema = z.object({
-  serviceId: z.string().trim().min(1),
-  startAt: z.string().datetime({ offset: true }).optional(),
-  prospectEmail: z.string().trim().email().max(320),
-  prospectName: z.string().trim().min(1).max(200),
-  promoCode: z.string().trim().min(1).max(50).optional(),
-  notes: z.string().trim().max(2000).optional(),
-});
+export const createCheckoutBookingSchema = z
+  .object({
+    serviceId: z.string().trim().min(1),
+    startAt: z.string().datetime({ offset: true }).optional(),
+    prospectEmail: z.string().trim().email().max(320),
+    prospectName: z.string().trim().min(1).max(200),
+    promoCode: z.string().trim().min(1).max(50).optional(),
+    referralCode: z.string().trim().min(1).max(50).optional(),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.promoCode && value.referralCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Promo code and referral code cannot be combined.",
+        path: ["referralCode"],
+      });
+    }
+  });
 
 export type CreateCheckoutBookingInput = z.infer<
   typeof createCheckoutBookingSchema
@@ -72,5 +83,9 @@ export const patchPromoCodeSchema = z
 export type PatchPromoCodeInput = z.infer<typeof patchPromoCodeSchema>;
 
 export function normalizePromoCode(code: string): string {
+  return code.trim().toUpperCase();
+}
+
+export function normalizeReferralCode(code: string): string {
   return code.trim().toUpperCase();
 }

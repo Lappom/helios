@@ -60,6 +60,13 @@ import {
   bookings,
 } from "./bookings";
 import { promoCodes } from "./promo-codes";
+import {
+  referralCodes,
+  referralConversions,
+  referralCreditBalances,
+  referralCreditLedger,
+  referralPrograms,
+} from "./referrals";
 import { payments, revenueSnapshots } from "./payments";
 import {
   notificationLogs,
@@ -119,6 +126,7 @@ export * from "./coach-tasks";
 export * from "./questionnaires";
 export * from "./pathways";
 export * from "./integrations";
+export * from "./referrals";
 
 export const organizationsRelations = relations(
   organizations,
@@ -149,6 +157,11 @@ export const organizationsRelations = relations(
     blockedDates: many(blockedDates),
     bookings: many(bookings),
     promoCodes: many(promoCodes),
+    referralPrograms: many(referralPrograms),
+    referralCodes: many(referralCodes),
+    referralConversions: many(referralConversions),
+    referralCreditBalances: many(referralCreditBalances),
+    referralCreditLedger: many(referralCreditLedger),
     payments: many(payments),
     revenueSnapshots: many(revenueSnapshots),
     notificationTemplates: many(notificationTemplates),
@@ -918,6 +931,10 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
     fields: [bookings.promoCodeId],
     references: [promoCodes.id],
   }),
+  referralCode: one(referralCodes, {
+    fields: [bookings.referralCodeId],
+    references: [referralCodes.id],
+  }),
 }));
 
 export const promoCodesRelations = relations(promoCodes, ({ one, many }) => ({
@@ -927,6 +944,101 @@ export const promoCodesRelations = relations(promoCodes, ({ one, many }) => ({
   }),
   bookings: many(bookings),
 }));
+
+export const referralProgramsRelations = relations(
+  referralPrograms,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [referralPrograms.organizationId],
+      references: [organizations.id],
+    }),
+    codes: many(referralCodes),
+  }),
+);
+
+export const referralCodesRelations = relations(
+  referralCodes,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [referralCodes.organizationId],
+      references: [organizations.id],
+    }),
+    program: one(referralPrograms, {
+      fields: [referralCodes.programId],
+      references: [referralPrograms.id],
+    }),
+    client: one(clients, {
+      fields: [referralCodes.clientId],
+      references: [clients.id],
+    }),
+    conversions: many(referralConversions),
+    bookings: many(bookings),
+  }),
+);
+
+export const referralConversionsRelations = relations(
+  referralConversions,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [referralConversions.organizationId],
+      references: [organizations.id],
+    }),
+    referralCode: one(referralCodes, {
+      fields: [referralConversions.referralCodeId],
+      references: [referralCodes.id],
+    }),
+    referrerClient: one(clients, {
+      fields: [referralConversions.referrerClientId],
+      references: [clients.id],
+      relationName: "referrerConversions",
+    }),
+    referredClient: one(clients, {
+      fields: [referralConversions.referredClientId],
+      references: [clients.id],
+      relationName: "referredConversions",
+    }),
+    payment: one(payments, {
+      fields: [referralConversions.paymentId],
+      references: [payments.id],
+    }),
+  }),
+);
+
+export const referralCreditBalancesRelations = relations(
+  referralCreditBalances,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [referralCreditBalances.organizationId],
+      references: [organizations.id],
+    }),
+    client: one(clients, {
+      fields: [referralCreditBalances.clientId],
+      references: [clients.id],
+    }),
+  }),
+);
+
+export const referralCreditLedgerRelations = relations(
+  referralCreditLedger,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [referralCreditLedger.organizationId],
+      references: [organizations.id],
+    }),
+    client: one(clients, {
+      fields: [referralCreditLedger.clientId],
+      references: [clients.id],
+    }),
+    conversion: one(referralConversions, {
+      fields: [referralCreditLedger.conversionId],
+      references: [referralConversions.id],
+    }),
+    payment: one(payments, {
+      fields: [referralCreditLedger.paymentId],
+      references: [payments.id],
+    }),
+  }),
+);
 
 export const paymentsRelations = relations(payments, ({ one }) => ({
   organization: one(organizations, {

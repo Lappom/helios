@@ -7,6 +7,7 @@ import { getPublicCoachBySlug } from "@/lib/coach-profile/service";
 
 type CoachProfilePageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ ref?: string }>;
 };
 
 export async function generateMetadata({ params }: CoachProfilePageProps) {
@@ -34,8 +35,10 @@ export async function generateMetadata({ params }: CoachProfilePageProps) {
 
 export default async function CoachProfilePage({
   params,
+  searchParams,
 }: CoachProfilePageProps) {
   const { slug } = await params;
+  const { ref } = await searchParams;
 
   let coach;
   try {
@@ -48,7 +51,11 @@ export default async function CoachProfilePage({
     <>
       <CoachProfileHero coach={coach} />
 
-      <CoachServicesGrid services={coach.services} coachSlug={slug} />
+      <CoachServicesGrid
+        services={coach.services}
+        coachSlug={slug}
+        referralCode={ref}
+      />
 
       {coach.certifications.length > 0 ? (
         <section className="py-section bg-canvas">

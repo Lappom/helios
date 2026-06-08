@@ -13,6 +13,7 @@ import { createId } from "../id";
 import { coachServices } from "./coach-profiles";
 import { clients } from "./clients";
 import { promoCodes } from "./promo-codes";
+import { referralCodes } from "./referrals";
 import {
   bookingPaymentStatusEnum,
   bookingStatusEnum,
@@ -121,7 +122,13 @@ export const bookings = pgTable(
     promoCodeId: text("promo_code_id").references(() => promoCodes.id, {
       onDelete: "set null",
     }),
+    referralCodeId: text("referral_code_id").references(() => referralCodes.id, {
+      onDelete: "set null",
+    }),
     discountCents: integer("discount_cents"),
+    referralCreditAppliedCents: integer("referral_credit_applied_cents")
+      .notNull()
+      .default(0),
     finalPriceCents: integer("final_price_cents"),
     notes: text("notes"),
     cancellationReason: text("cancellation_reason"),

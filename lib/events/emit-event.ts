@@ -58,5 +58,30 @@ export function emitHeliosEvent<T extends HeliosEventName>(
           );
         }),
     );
+    void import("@/lib/referrals/service").then(
+      ({ handleReferralClientCreated }) =>
+        handleReferralClientCreated(
+          clientCreatedPayload.organizationId,
+          clientCreatedPayload.clientId,
+        ).catch((error) => {
+          console.error(
+            "[helios:event] referral listener failed for client.created",
+            error,
+          );
+        }),
+    );
+  }
+
+  if (name === "payment.received") {
+    const paymentPayload = payload as HeliosEventPayload["payment.received"];
+    void import("@/lib/referrals/listeners").then(
+      ({ handleReferralPaymentEvent }) =>
+        handleReferralPaymentEvent(paymentPayload).catch((error) => {
+          console.error(
+            "[helios:event] referral listener failed for payment.received",
+            error,
+          );
+        }),
+    );
   }
 }

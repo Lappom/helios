@@ -76,6 +76,25 @@ export function CoachSettingsClient({
 
       <section className="space-y-4">
         <h2 className="text-title-md text-on-dark font-semibold">
+          Parrainage
+        </h2>
+        <div className="border-hairline bg-surface-card rounded-lg border p-6">
+          <p className="text-body-sm text-muted">
+            Programme de parrainage, codes clients et suivi des conversions
+            (Business+).
+          </p>
+          <Button
+            asChild
+            variant="outline"
+            className="border-hairline-strong text-on-dark hover:bg-surface-elevated mt-4 font-semibold"
+          >
+            <Link href="/coach/referrals">Gérer le parrainage</Link>
+          </Button>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-title-md text-on-dark font-semibold">
           Profil public
         </h2>
         <div className="border-hairline bg-surface-card rounded-lg border p-6">

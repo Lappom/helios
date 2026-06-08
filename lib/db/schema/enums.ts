@@ -311,3 +311,15 @@ export const webhookDeliveryStatusEnum = pgEnum("webhook_delivery_status", [
   "success",
   "failed",
 ]);
+
+export const referralConversionStatusEnum = pgEnum("referral_conversion_status", [
+  "pending",
+  "converted",
+  "cancelled",
+]);
+
+export const referralCreditEntryTypeEnum = pgEnum("referral_credit_entry_type", [
+  "commission_earned",
+  "credit_applied",
+  "adjustment",
+]);

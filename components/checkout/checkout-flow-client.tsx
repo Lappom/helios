@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { ChevronLeft, ChevronRight, Tag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Gift, Tag } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import {
   completeCheckoutRequest,
   validatePromoCodeRequest,
+  validateReferralCodeRequest,
 } from "@/lib/checkout/api-client";
 import { fetchAvailableSlots } from "@/lib/bookings/api-client";
 import type { BookingSlotDto } from "@/lib/bookings/types";
@@ -30,6 +31,7 @@ type CheckoutFlowClientProps = {
   coachName: string;
   service: CoachServiceDto;
   backHref?: string;
+  initialReferralCode?: string;
 };
 
 type Step = "slots" | "confirm" | "success";
@@ -56,6 +58,7 @@ export function CheckoutFlowClient({
   coachName,
   service,
   backHref,
+  initialReferralCode,
 }: CheckoutFlowClientProps) {
   const profileHref = backHref ?? `/find/coaches/${coachSlug}`;
   const { user } = useUser();
@@ -71,9 +74,13 @@ export function CheckoutFlowClient({
   const [prospectEmail, setProspectEmail] = useState("");
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
+  const [referralCode, setReferralCode] = useState(initialReferralCode ?? "");
+  const [referralApplied, setReferralApplied] = useState(false);
   const [discountCents, setDiscountCents] = useState(0);
+  const [referralCreditCents, setReferralCreditCents] = useState(0);
   const [finalPriceCents, setFinalPriceCents] = useState(service.priceCents);
   const [validatingPromo, setValidatingPromo] = useState(false);
+  const [validatingReferral, setValidatingReferral] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmedStartAt, setConfirmedStartAt] = useState<string | null>(null);
   const [paymentInstructions, setPaymentInstructions] = useState<
@@ -146,6 +153,40 @@ export function CheckoutFlowClient({
     };
   }, [needsSlot, service.id, weekDays]);
 
+  useEffect(() => {
+    if (!initialReferralCode?.trim()) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      setValidatingReferral(true);
+      try {
+        const result = await validateReferralCodeRequest({
+          serviceId: service.id,
+          code: initialReferralCode.trim(),
+        });
+        if (cancelled) return;
+        if (result.valid) {
+          setReferralApplied(true);
+          setDiscountCents(result.discountCents);
+          setFinalPriceCents(result.finalPriceCents);
+        }
+      } catch {
+        // Prefill only — user can retry manually
+      } finally {
+        if (!cancelled) {
+          setValidatingReferral(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialReferralCode, service.id]);
+
   const [prevUserId, setPrevUserId] = useState<string | null>(null);
   if (user?.id && user.id !== prevUserId) {
     setPrevUserId(user.id);
@@ -170,6 +211,8 @@ export function CheckoutFlowClient({
         toast.error(result.reason ?? "Code promo invalide");
         return;
       }
+      setReferralApplied(false);
+      setReferralCode("");
       setPromoApplied(true);
       setDiscountCents(result.discountCents);
       setFinalPriceCents(result.finalPriceCents);
@@ -180,6 +223,37 @@ export function CheckoutFlowClient({
       );
     } finally {
       setValidatingPromo(false);
+    }
+  }
+
+  async function handleApplyReferral() {
+    if (!referralCode.trim()) return;
+    setValidatingReferral(true);
+    try {
+      const result = await validateReferralCodeRequest({
+        serviceId: service.id,
+        code: referralCode.trim(),
+        prospectEmail: prospectEmail.trim() || undefined,
+      });
+      if (!result.valid) {
+        setReferralApplied(false);
+        setDiscountCents(0);
+        setFinalPriceCents(service.priceCents);
+        toast.error(result.reason ?? "Code parrain invalide");
+        return;
+      }
+      setPromoApplied(false);
+      setPromoCode("");
+      setReferralApplied(true);
+      setDiscountCents(result.discountCents);
+      setFinalPriceCents(result.finalPriceCents);
+      toast.success("Code parrain appliqué");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Validation impossible",
+      );
+    } finally {
+      setValidatingReferral(false);
     }
   }
 
@@ -203,10 +277,12 @@ export function CheckoutFlowClient({
         prospectEmail: prospectEmail.trim(),
         prospectName: prospectName.trim(),
         promoCode: promoApplied ? promoCode.trim() : undefined,
+        referralCode: referralApplied ? referralCode.trim() : undefined,
       });
       setConfirmedStartAt(selectedSlot?.startAt ?? null);
       setFinalPriceCents(result.finalPriceCents);
       setDiscountCents(result.discountCents);
+      setReferralCreditCents(result.referralCreditAppliedCents);
       setPaymentInstructions(result.paymentInstructions);
       setStep("success");
       toast.success("Commande confirmée");
@@ -244,12 +320,18 @@ export function CheckoutFlowClient({
           ) : null}
           <p className="text-stat-display text-primary mb-6 font-bold tracking-tight">
             {formatPriceCents(finalPriceCents, service.currency)}
-            {discountCents > 0 ? (
+            {discountCents > 0 || referralCreditCents > 0 ? (
               <span className="text-body-sm text-muted ml-2 line-through">
                 {formatPriceCents(service.priceCents, service.currency)}
               </span>
             ) : null}
           </p>
+          {referralCreditCents > 0 ? (
+            <p className="text-body-sm text-muted mb-4">
+              Crédit parrainage appliqué :{" "}
+              {formatPriceCents(referralCreditCents, service.currency)}
+            </p>
+          ) : null}
           {paymentInstructions ? (
             <div className="bg-surface-yellow-band text-on-yellow mb-6 rounded-lg p-6 text-left">
               <p className="text-caption-uppercase mb-2 tracking-widest uppercase">
@@ -417,7 +499,7 @@ export function CheckoutFlowClient({
             />
           </div>
 
-          <div className="mb-6 space-y-2">
+          <div className="mb-4 space-y-2">
             <label className="text-title-sm text-on-dark flex items-center gap-2 font-semibold">
               <Tag className="size-4" />
               Code promo
@@ -429,17 +511,58 @@ export function CheckoutFlowClient({
                 onChange={(e) => {
                   setPromoCode(e.target.value.toUpperCase());
                   setPromoApplied(false);
+                  if (e.target.value) {
+                    setReferralApplied(false);
+                    setReferralCode("");
+                  }
                 }}
+                disabled={referralApplied}
                 className="bg-surface-elevated border-hairline uppercase"
               />
               <Button
                 type="button"
                 variant="outline"
                 className="border-hairline shrink-0"
-                disabled={validatingPromo || !promoCode.trim()}
+                disabled={
+                  validatingPromo || !promoCode.trim() || referralApplied
+                }
                 onClick={() => void handleApplyPromo()}
               >
                 {validatingPromo ? "…" : "Appliquer"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="mb-6 space-y-2">
+            <label className="text-title-sm text-on-dark flex items-center gap-2 font-semibold">
+              <Gift className="size-4" />
+              Code parrain
+            </label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="REF-ABC123"
+                value={referralCode}
+                onChange={(e) => {
+                  setReferralCode(e.target.value.toUpperCase());
+                  setReferralApplied(false);
+                  if (e.target.value) {
+                    setPromoApplied(false);
+                    setPromoCode("");
+                  }
+                }}
+                disabled={promoApplied}
+                className="bg-surface-elevated border-hairline font-mono uppercase"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="border-hairline shrink-0"
+                disabled={
+                  validatingReferral || !referralCode.trim() || promoApplied
+                }
+                onClick={() => void handleApplyReferral()}
+              >
+                {validatingReferral ? "…" : "Appliquer"}
               </Button>
             </div>
           </div>
@@ -450,9 +573,15 @@ export function CheckoutFlowClient({
               <p className="text-title-lg text-primary font-bold">
                 {formatPriceCents(finalPriceCents, service.currency)}
               </p>
-              {discountCents > 0 ? (
+              {discountCents > 0 || referralCreditCents > 0 ? (
                 <p className="text-body-sm text-muted line-through">
                   {formatPriceCents(service.priceCents, service.currency)}
+                </p>
+              ) : null}
+              {referralCreditCents > 0 ? (
+                <p className="text-body-sm text-muted">
+                  Crédit parrain : -
+                  {formatPriceCents(referralCreditCents, service.currency)}
                 </p>
               ) : null}
             </div>

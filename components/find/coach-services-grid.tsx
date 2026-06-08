@@ -12,12 +12,22 @@ const SERVICE_TYPE_LABELS = {
 type CoachServicesGridProps = {
   services: CoachServiceDto[];
   coachSlug?: string;
+  referralCode?: string;
   className?: string;
 };
+
+function buildCheckoutHref(serviceId: string, referralCode?: string): string {
+  const base = `/checkout/${serviceId}`;
+  if (!referralCode?.trim()) {
+    return base;
+  }
+  return `${base}?ref=${encodeURIComponent(referralCode.trim())}`;
+}
 
 export function CoachServicesGrid({
   services,
   coachSlug,
+  referralCode,
   className,
 }: CoachServicesGridProps) {
   if (services.length === 0) {
@@ -64,7 +74,7 @@ export function CoachServicesGrid({
                 ]}
                 featured={index === 0}
                 ctaLabel={service.bookingEnabled ? "Réserver" : "Commander"}
-                ctaHref={`/checkout/${service.id}`}
+                ctaHref={buildCheckoutHref(service.id, referralCode)}
                 hideCta={!coachSlug}
                 className="h-full"
               />

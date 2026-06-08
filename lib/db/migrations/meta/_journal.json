@@ -183,6 +183,13 @@
       "when": 1780911292741,
       "tag": "0025_wooden_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1780912110743,
+      "tag": "0026_square_purifiers",
+      "breakpoints": true
     }
   ]
 }
