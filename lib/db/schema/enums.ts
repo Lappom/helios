@@ -67,3 +67,5 @@ export const sessionLogStatusEnum = pgEnum("session_log_status", [
   "completed",
   "abandoned",
 ]);
+
+export const foodSourceEnum = pgEnum("food_source", ["off", "usda", "custom"]);

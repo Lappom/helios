@@ -4,6 +4,7 @@
   "crons": [
     { "path": "/api/cron/daily-reminders", "schedule": "0 8 * * *" },
     { "path": "/api/cron/monthly-assessments", "schedule": "0 6 1 * *" },
-    { "path": "/api/cron/reset-ai-credits", "schedule": "0 0 1 * *" }
+    { "path": "/api/cron/reset-ai-credits", "schedule": "0 0 1 * *" },
+    { "path": "/api/cron/sync-off-foods", "schedule": "0 3 * * 0" }
   ]
 }

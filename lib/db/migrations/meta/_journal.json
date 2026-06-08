@@ -43,6 +43,13 @@
       "when": 1780879872627,
       "tag": "0005_stale_roxanne_simpson",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780880945686,
+      "tag": "0006_white_wong",
+      "breakpoints": true
     }
   ]
 }

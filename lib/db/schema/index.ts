@@ -29,12 +29,14 @@ import {
   programWeeks,
   setPrescriptions,
 } from "./programs";
+import { foods } from "./foods";
 import { sessionLogs, setLogs } from "./session-logs";
 
 export * from "./enums";
 export * from "./organization";
 export * from "./clients";
 export * from "./exercises";
+export * from "./foods";
 export * from "./programs";
 export * from "./session-logs";
 
@@ -50,6 +52,7 @@ export const organizationsRelations = relations(
     clientTags: many(clientTags),
     exerciseCategories: many(exerciseCategories),
     exercises: many(exercises),
+    foods: many(foods),
     programs: many(programs),
   }),
 );
@@ -370,6 +373,13 @@ export const setLogsRelations = relations(setLogs, ({ one }) => ({
   exercise: one(exercises, {
     fields: [setLogs.exerciseId],
     references: [exercises.id],
+  }),
+}));
+
+export const foodsRelations = relations(foods, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [foods.organizationId],
+    references: [organizations.id],
   }),
 }));
 
