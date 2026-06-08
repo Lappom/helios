@@ -8,8 +8,11 @@ import { analyticsQuerySchema } from "@/lib/validators/sessions";
 export const GET = withApiHandler({ requireOrg: true }, async ({ request }) => {
   const org = await requireCoachRead();
   const programId = getProgramIdFromPath(request);
-  const clientId = new URL(request.url).searchParams.get("clientId");
-  const query = analyticsQuerySchema.safeParse({ clientId });
+  const params = new URL(request.url).searchParams;
+  const query = analyticsQuerySchema.safeParse({
+    clientId: params.get("clientId"),
+    groupBy: params.get("groupBy") ?? undefined,
+  });
 
   if (!query.success) {
     throw problem({
@@ -24,6 +27,7 @@ export const GET = withApiHandler({ requireOrg: true }, async ({ request }) => {
     org.organizationId,
     programId,
     query.data.clientId,
+    { groupBy: query.data.groupBy },
   );
 
   return jsonOk(analytics);

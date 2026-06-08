@@ -1,4 +1,8 @@
-import type { BlockType, ProgramStatus } from "@/lib/validators/programs";
+import type {
+  BlockType,
+  ProgramStatus,
+  TrainingPhaseFocus,
+} from "@/lib/validators/programs";
 
 export type ProgramListItem = {
   id: string;
@@ -63,11 +67,35 @@ export type ProgramSessionItem = {
   blocks: ExerciseBlockItem[];
 };
 
+export type CycleBlockBase = {
+  id: string;
+  sortOrder: number;
+  name: string;
+  description: string | null;
+  focus: TrainingPhaseFocus | null;
+  targetDurationWeeks: number | null;
+};
+
 export type ProgramWeekItem = {
   id: string;
   sortOrder: number;
   label: string;
+  microcycleId?: string | null;
+  macrocycleId?: string | null;
+  mesocycleId?: string | null;
   sessions: ProgramSessionItem[];
+};
+
+export type ProgramMicrocycleItem = CycleBlockBase & {
+  weeks: ProgramWeekItem[];
+};
+
+export type ProgramMacrocycleItem = CycleBlockBase & {
+  microcycles: ProgramMicrocycleItem[];
+};
+
+export type ProgramMesocycleItem = CycleBlockBase & {
+  macrocycles: ProgramMacrocycleItem[];
 };
 
 export type ProgramTree = {
@@ -80,6 +108,7 @@ export type ProgramTree = {
   clonedFromProgramId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  mesocycles: ProgramMesocycleItem[];
   weeks: ProgramWeekItem[];
 };
 
@@ -94,6 +123,7 @@ export type ProgramAssignmentItem = {
   programId: string;
   clientId: string;
   coachClerkUserId: string;
+  startMesocycleId: string | null;
   startDate: Date;
   endDate: Date | null;
   status: ProgramAssignmentStatus;

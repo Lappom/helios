@@ -23,6 +23,7 @@ export type PathwayEnrollmentStatus =
 const assignProgramConfigSchema = z.object({
   programId: z.string().min(1),
   startDate: z.string().datetime().optional(),
+  startMesocycleId: z.string().min(1).optional(),
 });
 
 const createAssessmentConfigSchema = z.object({

@@ -24,6 +24,9 @@ import {
   blockExercises,
   exerciseBlocks,
   programAssignments,
+  programMacrocycles,
+  programMesocycles,
+  programMicrocycles,
   programSessions,
   programs,
   programWeeks,
@@ -358,9 +361,55 @@ export const programsRelations = relations(programs, ({ one, many }) => ({
     references: [programs.id],
     relationName: "programClones",
   }),
+  mesocycles: many(programMesocycles),
   weeks: many(programWeeks),
   assignments: many(programAssignments),
 }));
+
+export const programMesocyclesRelations = relations(
+  programMesocycles,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [programMesocycles.organizationId],
+      references: [organizations.id],
+    }),
+    program: one(programs, {
+      fields: [programMesocycles.programId],
+      references: [programs.id],
+    }),
+    macrocycles: many(programMacrocycles),
+  }),
+);
+
+export const programMacrocyclesRelations = relations(
+  programMacrocycles,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [programMacrocycles.organizationId],
+      references: [organizations.id],
+    }),
+    mesocycle: one(programMesocycles, {
+      fields: [programMacrocycles.mesocycleId],
+      references: [programMesocycles.id],
+    }),
+    microcycles: many(programMicrocycles),
+  }),
+);
+
+export const programMicrocyclesRelations = relations(
+  programMicrocycles,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [programMicrocycles.organizationId],
+      references: [organizations.id],
+    }),
+    macrocycle: one(programMacrocycles, {
+      fields: [programMicrocycles.macrocycleId],
+      references: [programMacrocycles.id],
+    }),
+    weeks: many(programWeeks),
+  }),
+);
 
 export const programWeeksRelations = relations(
   programWeeks,
@@ -372,6 +421,10 @@ export const programWeeksRelations = relations(
     program: one(programs, {
       fields: [programWeeks.programId],
       references: [programs.id],
+    }),
+    microcycle: one(programMicrocycles, {
+      fields: [programWeeks.microcycleId],
+      references: [programMicrocycles.id],
     }),
     sessions: many(programSessions),
   }),
@@ -475,6 +528,10 @@ export const programAssignmentsRelations = relations(
     client: one(clients, {
       fields: [programAssignments.clientId],
       references: [clients.id],
+    }),
+    startMesocycle: one(programMesocycles, {
+      fields: [programAssignments.startMesocycleId],
+      references: [programMesocycles.id],
     }),
     sessionOverrides: many(assignmentSessionOverrides),
     sessionLogs: many(sessionLogs),

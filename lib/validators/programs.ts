@@ -14,6 +14,54 @@ export const BLOCK_TYPES = [
 export type BlockType = (typeof BLOCK_TYPES)[number];
 export const blockTypeSchema = z.enum(BLOCK_TYPES);
 
+export const TRAINING_PHASE_FOCUSES = [
+  "strength",
+  "hypertrophy",
+  "power",
+  "endurance",
+  "deload",
+  "custom",
+] as const;
+export type TrainingPhaseFocus = (typeof TRAINING_PHASE_FOCUSES)[number];
+export const trainingPhaseFocusSchema = z.enum(TRAINING_PHASE_FOCUSES);
+
+const cycleBlockFields = {
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(5000).nullable().optional(),
+  focus: trainingPhaseFocusSchema.nullable().optional(),
+  targetDurationWeeks: z.number().int().min(1).max(520).nullable().optional(),
+};
+
+export const createMesocycleSchema = z.object({
+  ...cycleBlockFields,
+  name: cycleBlockFields.name.optional(),
+});
+
+export const patchMesocycleSchema = z
+  .object({
+    name: cycleBlockFields.name.optional(),
+    description: cycleBlockFields.description,
+    focus: cycleBlockFields.focus,
+    targetDurationWeeks: cycleBlockFields.targetDurationWeeks,
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required.",
+  });
+
+export const createMacrocycleSchema = z.object({
+  ...cycleBlockFields,
+  name: cycleBlockFields.name.optional(),
+});
+
+export const patchMacrocycleSchema = patchMesocycleSchema;
+
+export const createMicrocycleSchema = z.object({
+  ...cycleBlockFields,
+  name: cycleBlockFields.name.optional(),
+});
+
+export const patchMicrocycleSchema = patchMesocycleSchema;
+
 export const createProgramSchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(5000).optional(),
@@ -31,11 +79,13 @@ export const patchProgramSchema = z
 
 export const createWeekSchema = z.object({
   label: z.string().trim().min(1).max(100).optional(),
+  microcycleId: z.string().min(1).optional(),
 });
 
 export const patchWeekSchema = z
   .object({
     label: z.string().trim().min(1).max(100).optional(),
+    microcycleId: z.string().min(1).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required.",
@@ -125,6 +175,7 @@ export const addBlockExerciseSchema = z.object({
 export const assignProgramSchema = z.object({
   clientIds: z.array(z.string().min(1)).min(1).max(50),
   startDate: z.coerce.date(),
+  startMesocycleId: z.string().min(1).optional(),
 });
 
 export const patchAssignmentScheduleSchema = z.object({
@@ -141,6 +192,12 @@ export type CreateBlockInput = z.infer<typeof createBlockSchema>;
 export type PatchBlockInput = z.infer<typeof patchBlockSchema>;
 export type PatchBlockExerciseInput = z.infer<typeof patchBlockExerciseSchema>;
 export type SetPrescriptionInput = z.infer<typeof setPrescriptionSchema>;
+export type CreateMesocycleInput = z.infer<typeof createMesocycleSchema>;
+export type PatchMesocycleInput = z.infer<typeof patchMesocycleSchema>;
+export type CreateMacrocycleInput = z.infer<typeof createMacrocycleSchema>;
+export type PatchMacrocycleInput = z.infer<typeof patchMacrocycleSchema>;
+export type CreateMicrocycleInput = z.infer<typeof createMicrocycleSchema>;
+export type PatchMicrocycleInput = z.infer<typeof patchMicrocycleSchema>;
 export type AssignProgramInput = z.infer<typeof assignProgramSchema>;
 export type PatchAssignmentScheduleInput = z.infer<
   typeof patchAssignmentScheduleSchema

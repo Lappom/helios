@@ -19,6 +19,7 @@ import {
 
 const ACTION_LABELS: Record<AutomationActionType, string> = {
   assign_program: "assign_program",
+  assign_next_mesocycle: "assign_next_mesocycle",
   assign_nutrition: "assign_nutrition",
   create_assessment: "create_assessment",
   send_notification: "send_notification",

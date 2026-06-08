@@ -1,0 +1,2 @@
+ALTER TYPE "public"."automation_action_type" ADD VALUE 'assign_next_mesocycle' BEFORE 'assign_nutrition';--> statement-breakpoint
+ALTER TYPE "public"."automation_trigger_type" ADD VALUE 'mesocycle_completed';

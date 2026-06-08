@@ -16,8 +16,13 @@ import {
 } from "@dnd-kit/sortable";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { FeatureGate } from "@/components/billing/feature-gate";
 import { ProgramExercisePalette } from "@/components/coach/programs/program-exercise-palette";
 import { PALETTE_EXERCISE_PREFIX } from "@/components/coach/programs/program-exercise-palette";
+import {
+  MESOCYCLE_SORTABLE_PREFIX,
+  ProgramPeriodizationSidebar,
+} from "@/components/coach/programs/program-periodization-sidebar";
 import { ProgramPublishBar } from "@/components/coach/programs/program-publish-bar";
 import {
   BLOCK_SORTABLE_PREFIX,
@@ -31,15 +36,24 @@ import {
 import {
   addBlockExerciseRequest,
   createBlockRequest,
+  createMacrocycleRequest,
+  createMesocycleRequest,
+  createMicrocycleRequest,
   createSessionRequest,
   createWeekRequest,
   deleteBlockExerciseRequest,
   deleteBlockRequest,
+  deleteMesocycleRequest,
   deleteSessionRequest,
   deleteWeekRequest,
+  duplicateMesocycleRequest,
   patchBlockExerciseRequest,
   patchBlockRequest,
+  patchMacrocycleRequest,
+  patchMesocycleRequest,
+  patchMicrocycleRequest,
   reorderBlocksRequest,
+  reorderMesocyclesRequest,
   reorderWeeksRequest,
 } from "@/lib/programs/api-client";
 import type { ProgramTree, SetPrescriptionItem } from "@/lib/programs/types";
@@ -104,6 +118,24 @@ export function ProgramEditorClient({
 
     const activeId = String(active.id);
     const overId = String(over.id);
+
+    if (activeId.startsWith(MESOCYCLE_SORTABLE_PREFIX)) {
+      const oldIndex = program.mesocycles.findIndex(
+        (meso) => `${MESOCYCLE_SORTABLE_PREFIX}${meso.id}` === activeId,
+      );
+      const newIndex = program.mesocycles.findIndex(
+        (meso) => `${MESOCYCLE_SORTABLE_PREFIX}${meso.id}` === overId,
+      );
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+      const reordered = arrayMove(program.mesocycles, oldIndex, newIndex);
+      await mutate(() =>
+        reorderMesocyclesRequest(
+          program.id,
+          reordered.map((meso) => meso.id),
+        ),
+      );
+      return;
+    }
 
     if (activeId.startsWith(WEEK_SORTABLE_PREFIX)) {
       const oldIndex = program.weeks.findIndex(
@@ -173,6 +205,86 @@ export function ProgramEditorClient({
     setActiveDragLabel(data?.exerciseName ?? "Élément");
   }
 
+  function selectWeek(weekId: string) {
+    setActiveWeekId(weekId);
+    const week = program.weeks.find((item) => item.id === weekId);
+    setActiveSessionId(week?.sessions[0]?.id ?? "");
+  }
+
+  const sidebarFlat = (
+    <SortableContext
+      items={program.weeks.map((week) => `${WEEK_SORTABLE_PREFIX}${week.id}`)}
+      strategy={verticalListSortingStrategy}
+    >
+      <ProgramWeeksSidebar
+        weeks={program.weeks}
+        activeWeekId={activeWeekId}
+        disabled={isLocked}
+        onSelectWeek={selectWeek}
+        onAddWeek={() =>
+          mutate(() => createWeekRequest(program.id), "Semaine ajoutée")
+        }
+        onDeleteWeek={(weekId) =>
+          mutate(() => deleteWeekRequest(program.id, weekId), "Semaine supprimée")
+        }
+      />
+    </SortableContext>
+  );
+
+  const sidebarPeriodization = (
+    <ProgramPeriodizationSidebar
+      program={program}
+      activeWeekId={activeWeekId}
+      disabled={isLocked}
+      onSelectWeek={selectWeek}
+      onAddWeek={(microcycleId) =>
+        mutate(
+          () => createWeekRequest(program.id, { microcycleId }),
+          "Semaine ajoutée",
+        )
+      }
+      onAddMesocycle={() =>
+        mutate(() => createMesocycleRequest(program.id), "Mésocycle ajouté")
+      }
+      onAddMacrocycle={(mesocycleId) =>
+        mutate(
+          () => createMacrocycleRequest(program.id, mesocycleId),
+          "Macrocycle ajouté",
+        )
+      }
+      onAddMicrocycle={(macrocycleId) =>
+        mutate(
+          () => createMicrocycleRequest(program.id, macrocycleId),
+          "Microcycle ajouté",
+        )
+      }
+      onDeleteWeek={(weekId) =>
+        mutate(() => deleteWeekRequest(program.id, weekId), "Semaine supprimée")
+      }
+      onDeleteMesocycle={(mesocycleId) =>
+        mutate(
+          () => deleteMesocycleRequest(program.id, mesocycleId),
+          "Mésocycle supprimé",
+        )
+      }
+      onDuplicateMesocycle={(mesocycleId) =>
+        mutate(
+          () => duplicateMesocycleRequest(program.id, mesocycleId),
+          "Mésocycle dupliqué",
+        )
+      }
+      onPatchMesocycle={(mesocycleId, input) =>
+        mutate(() => patchMesocycleRequest(program.id, mesocycleId, input))
+      }
+      onPatchMacrocycle={(macrocycleId, input) =>
+        mutate(() => patchMacrocycleRequest(program.id, macrocycleId, input))
+      }
+      onPatchMicrocycle={(microcycleId, input) =>
+        mutate(() => patchMicrocycleRequest(program.id, microcycleId, input))
+      }
+    />
+  );
+
   return (
     <div className="mx-auto max-w-[1600px]">
       <ProgramPublishBar
@@ -186,30 +298,10 @@ export function ProgramEditorClient({
         onDragStart={handleDragStart}
         onDragEnd={(event) => void handleDragEnd(event)}
       >
-        <div className="grid min-h-[720px] gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-          <SortableContext
-            items={program.weeks.map(
-              (week) => `${WEEK_SORTABLE_PREFIX}${week.id}`,
-            )}
-            strategy={verticalListSortingStrategy}
-          >
-            <ProgramWeeksSidebar
-              weeks={program.weeks}
-              activeWeekId={activeWeekId}
-              disabled={isLocked}
-              onSelectWeek={(weekId) => {
-                setActiveWeekId(weekId);
-                const week = program.weeks.find((item) => item.id === weekId);
-                setActiveSessionId(week?.sessions[0]?.id ?? "");
-              }}
-              onAddWeek={() =>
-                mutate(() => createWeekRequest(program.id), "Semaine ajoutée")
-              }
-              onDeleteWeek={(weekId) =>
-                mutate(() => deleteWeekRequest(program.id, weekId), "Semaine supprimée")
-              }
-            />
-          </SortableContext>
+        <div className="grid min-h-[720px] gap-4 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
+          <FeatureGate feature="periodization" fallback={sidebarFlat}>
+            {sidebarPeriodization}
+          </FeatureGate>
 
           <ProgramSessionsCanvas
             week={activeWeek}

@@ -14,10 +14,10 @@ import {
 } from "@/lib/db/schema";
 import { problem } from "@/lib/api/response";
 import { getActiveClientProgram } from "@/lib/programs/assignments";
+import { loadScheduleSessionInputs } from "@/lib/programs/schedule-inputs";
 import {
   buildAssignmentSchedule,
   filterScheduleByRange,
-  type ScheduleSessionInput,
 } from "@/lib/programs/schedule";
 import type { ExerciseBlockItem } from "@/lib/programs/types";
 import type {
@@ -34,41 +34,6 @@ import type {
   SetLogItem,
 } from "./types";
 import { normalizeScheduledDate, toScheduledDateKey } from "./utils";
-
-async function loadScheduleSessionInputs(
-  organizationId: string,
-  programId: string,
-): Promise<ScheduleSessionInput[]> {
-  const weeks = await db.query.programWeeks.findMany({
-    where: and(
-      eq(programWeeks.organizationId, organizationId),
-      eq(programWeeks.programId, programId),
-    ),
-    orderBy: [asc(programWeeks.sortOrder)],
-    with: {
-      sessions: {
-        orderBy: [asc(programSessions.sortOrder)],
-      },
-    },
-  });
-
-  const inputs: ScheduleSessionInput[] = [];
-
-  for (const week of weeks) {
-    for (const session of week.sessions) {
-      inputs.push({
-        programSessionId: session.id,
-        name: session.name,
-        weekLabel: week.label,
-        weekSortOrder: week.sortOrder,
-        sessionSortOrder: session.sortOrder,
-        dayOfWeek: session.dayOfWeek,
-      });
-    }
-  }
-
-  return inputs;
-}
 
 function mapSessionLog(row: typeof sessionLogs.$inferSelect): SessionLogItem {
   return {
@@ -227,6 +192,15 @@ function enrichSchedule(
       scheduledDate: session.scheduledDate,
       scheduledDateKey,
       hasOverride: session.hasOverride,
+      mesocycleId: session.mesocycleId,
+      mesocycleName: session.mesocycleName,
+      macrocycleId: session.macrocycleId,
+      macrocycleName: session.macrocycleName,
+      microcycleId: session.microcycleId,
+      microcycleName: session.microcycleName,
+      focus: session.focus,
+      weekIndexInMicrocycle: session.weekIndexInMicrocycle,
+      weeksInMicrocycle: session.weeksInMicrocycle,
       status,
       sessionLogId,
     };
@@ -244,7 +218,9 @@ export async function getEnrichedSchedule(
   );
 
   const [sessionInputs, overrides, logs] = await Promise.all([
-    loadScheduleSessionInputs(organizationId, assignment.programId),
+    loadScheduleSessionInputs(organizationId, assignment.programId, {
+      startMesocycleId: assignment.startMesocycleId,
+    }),
     db.query.assignmentSessionOverrides.findMany({
       where: eq(assignmentSessionOverrides.assignmentId, assignment.id),
     }),

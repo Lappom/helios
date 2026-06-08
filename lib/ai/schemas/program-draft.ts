@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { blockTypeSchema } from "@/lib/validators/programs";
+import {
+  blockTypeSchema,
+  trainingPhaseFocusSchema,
+} from "@/lib/validators/programs";
 
 const prescriptionDraftSchema = z.object({
   setNumber: z.number().int().min(1).max(50),
@@ -44,10 +47,40 @@ const weekDraftSchema = z.object({
   sessions: z.array(sessionDraftSchema).min(1).max(14),
 });
 
+const microcycleDraftSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  focus: trainingPhaseFocusSchema.nullable().optional(),
+  targetDurationWeeks: z.number().int().min(1).max(52).nullable().optional(),
+  weeks: z.array(weekDraftSchema).min(1).max(12),
+});
+
+const macrocycleDraftSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  focus: trainingPhaseFocusSchema.nullable().optional(),
+  targetDurationWeeks: z.number().int().min(1).max(52).nullable().optional(),
+  microcycles: z.array(microcycleDraftSchema).min(1).max(12),
+});
+
+const mesocycleDraftSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  focus: trainingPhaseFocusSchema.nullable().optional(),
+  targetDurationWeeks: z.number().int().min(1).max(52).nullable().optional(),
+  macrocycles: z.array(macrocycleDraftSchema).min(1).max(12),
+});
+
 export const programDraftSchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(5000).nullable().optional(),
-  weeks: z.array(weekDraftSchema).min(1).max(52),
+  mesocycles: z.array(mesocycleDraftSchema).min(1).max(12).optional(),
+  weeks: z.array(weekDraftSchema).min(1).max(52).optional(),
+}).superRefine((value, ctx) => {
+  if (!value.mesocycles?.length && !value.weeks?.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Either mesocycles or weeks must be provided.",
+      path: ["weeks"],
+    });
+  }
 });
 
 export type ProgramDraft = z.infer<typeof programDraftSchema>;
@@ -68,16 +101,34 @@ export type ResolvedBlockDraft = {
   exercises: ResolvedExerciseDraft[];
 };
 
+type ResolvedWeekDraft = {
+  label: string;
+  sessions: Array<{
+    name: string;
+    dayOfWeek: number | null;
+    blocks: ResolvedBlockDraft[];
+  }>;
+};
+
 export type ResolvedProgramDraft = {
   name: string;
   description: string | null;
-  weeks: Array<{
-    label: string;
-    sessions: Array<{
+  mesocycles?: Array<{
+    name: string;
+    focus?: z.infer<typeof trainingPhaseFocusSchema> | null;
+    targetDurationWeeks?: number | null;
+    macrocycles: Array<{
       name: string;
-      dayOfWeek: number | null;
-      blocks: ResolvedBlockDraft[];
+      focus?: z.infer<typeof trainingPhaseFocusSchema> | null;
+      targetDurationWeeks?: number | null;
+      microcycles: Array<{
+        name: string;
+        focus?: z.infer<typeof trainingPhaseFocusSchema> | null;
+        targetDurationWeeks?: number | null;
+        weeks: ResolvedWeekDraft[];
+      }>;
     }>;
   }>;
+  weeks: ResolvedWeekDraft[];
   unresolvedExercises: string[];
 };

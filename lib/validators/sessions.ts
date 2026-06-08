@@ -27,6 +27,7 @@ export const completeSessionSchema = z.object({
 
 export const analyticsQuerySchema = z.object({
   clientId: z.string().min(1),
+  groupBy: z.enum(["mesocycle"]).optional(),
 });
 
 export const scheduleQuerySchema = z.object({

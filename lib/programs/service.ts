@@ -15,12 +15,21 @@ import {
   blockExercises,
   exerciseBlocks,
   exercises,
+  programMacrocycles,
+  programMesocycles,
+  programMicrocycles,
   programSessions,
   programs,
   programWeeks,
   setPrescriptions,
 } from "@/lib/db/schema";
 import { problem } from "@/lib/api/response";
+import {
+  assertProgramStructureEditable,
+  fetchProgramRaw,
+  getProgramRowOrThrow,
+  getProgramTree,
+} from "./program-queries";
 import type {
   CreateBlockInput,
   CreateProgramInput,
@@ -50,43 +59,24 @@ export type ListProgramsOptions = {
   offset: number;
 };
 
-async function getProgramRowOrThrow(organizationId: string, programId: string) {
-  const program = await db.query.programs.findFirst({
-    where: and(
-      eq(programs.organizationId, organizationId),
-      eq(programs.id, programId),
-    ),
-  });
+export { assertProgramStructureEditable, getProgramTree } from "./program-queries";
 
-  if (!program) {
-    throw problem({
-      type: "not-found",
-      title: "Program not found",
-      status: 404,
-      detail: `Program ${programId} was not found in this organization.`,
-    });
+async function getNextWeekSortOrder(
+  programId: string,
+  microcycleId?: string | null,
+) {
+  if (microcycleId) {
+    const [row] = await db
+      .select({ max: sql<number>`coalesce(max(${programWeeks.sortOrder}), -1)` })
+      .from(programWeeks)
+      .where(eq(programWeeks.microcycleId, microcycleId));
+    return (row?.max ?? -1) + 1;
   }
 
-  return program;
-}
-
-export function assertProgramStructureEditable(program: { status: string }) {
-  if (program.status !== "draft") {
-    throw problem({
-      type: "forbidden",
-      title: "Program is locked",
-      status: 403,
-      detail:
-        "Published or archived programs cannot be modified structurally. Unpublish to edit.",
-    });
-  }
-}
-
-async function getNextWeekSortOrder(programId: string) {
   const [row] = await db
     .select({ max: sql<number>`coalesce(max(${programWeeks.sortOrder}), -1)` })
     .from(programWeeks)
-    .where(eq(programWeeks.programId, programId));
+    .where(and(eq(programWeeks.programId, programId), isNull(programWeeks.microcycleId)));
   return (row?.max ?? -1) + 1;
 }
 
@@ -112,104 +102,6 @@ async function getNextBlockExerciseSortOrder(blockId: string) {
     .from(blockExercises)
     .where(eq(blockExercises.exerciseBlockId, blockId));
   return (row?.max ?? -1) + 1;
-}
-
-function mapProgramTree(raw: NonNullable<Awaited<ReturnType<typeof fetchProgramRaw>>>): ProgramTree {
-  return {
-    id: raw.id,
-    name: raw.name,
-    description: raw.description,
-    status: raw.status,
-    coachClerkUserId: raw.coachClerkUserId,
-    publishedAt: raw.publishedAt,
-    clonedFromProgramId: raw.clonedFromProgramId,
-    createdAt: raw.createdAt,
-    updatedAt: raw.updatedAt,
-    weeks: raw.weeks.map((week) => ({
-      id: week.id,
-      sortOrder: week.sortOrder,
-      label: week.label,
-      sessions: week.sessions.map((session) => ({
-        id: session.id,
-        sortOrder: session.sortOrder,
-        name: session.name,
-        dayOfWeek: session.dayOfWeek,
-        scheduledDate: session.scheduledDate,
-        blocks: session.blocks.map((block) => ({
-          id: block.id,
-          sortOrder: block.sortOrder,
-          type: block.type,
-          sharedRestSeconds: block.sharedRestSeconds,
-          rounds: block.rounds,
-          restBetweenRoundsSeconds: block.restBetweenRoundsSeconds,
-          durationSeconds: block.durationSeconds,
-          targetRpe: block.targetRpe,
-          exercises: block.exercises.map((blockExercise) => ({
-            id: blockExercise.id,
-            exerciseId: blockExercise.exerciseId,
-            exerciseName: blockExercise.exercise.name,
-            sortOrder: blockExercise.sortOrder,
-            notes: blockExercise.notes,
-            alternatives: blockExercise.alternatives.map((alt) => ({
-              id: alt.id,
-              exerciseId: alt.exerciseId,
-              exerciseName: alt.exercise.name,
-              sortOrder: alt.sortOrder,
-            })),
-            prescriptions: blockExercise.prescriptions.map((prescription) => ({
-              id: prescription.id,
-              setNumber: prescription.setNumber,
-              load: prescription.load,
-              reps: prescription.reps,
-              restSeconds: prescription.restSeconds,
-              tempo: prescription.tempo,
-              rpe: prescription.rpe,
-              durationSeconds: prescription.durationSeconds,
-            })),
-          })),
-        })),
-      })),
-    })),
-  };
-}
-
-async function fetchProgramRaw(organizationId: string, programId: string) {
-  return db.query.programs.findFirst({
-    where: and(
-      eq(programs.organizationId, organizationId),
-      eq(programs.id, programId),
-    ),
-    with: {
-      weeks: {
-        orderBy: asc(programWeeks.sortOrder),
-        with: {
-          sessions: {
-            orderBy: asc(programSessions.sortOrder),
-            with: {
-              blocks: {
-                orderBy: asc(exerciseBlocks.sortOrder),
-                with: {
-                  exercises: {
-                    orderBy: asc(blockExercises.sortOrder),
-                    with: {
-                      exercise: true,
-                      alternatives: {
-                        orderBy: asc(blockExerciseAlternatives.sortOrder),
-                        with: { exercise: true },
-                      },
-                      prescriptions: {
-                        orderBy: asc(setPrescriptions.setNumber),
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
 }
 
 export async function listPrograms(
@@ -281,11 +173,42 @@ export async function createProgram(
       })
       .returning({ id: programs.id });
 
+    const [mesocycle] = await tx
+      .insert(programMesocycles)
+      .values({
+        organizationId,
+        programId: program!.id,
+        sortOrder: 0,
+        name: "Plan principal",
+      })
+      .returning({ id: programMesocycles.id });
+
+    const [macrocycle] = await tx
+      .insert(programMacrocycles)
+      .values({
+        organizationId,
+        mesocycleId: mesocycle!.id,
+        sortOrder: 0,
+        name: "Bloc principal",
+      })
+      .returning({ id: programMacrocycles.id });
+
+    const [microcycle] = await tx
+      .insert(programMicrocycles)
+      .values({
+        organizationId,
+        macrocycleId: macrocycle!.id,
+        sortOrder: 0,
+        name: "Phase principale",
+      })
+      .returning({ id: programMicrocycles.id });
+
     const [week] = await tx
       .insert(programWeeks)
       .values({
         organizationId,
         programId: program!.id,
+        microcycleId: microcycle!.id,
         sortOrder: 0,
         label: "Semaine 1",
       })
@@ -302,24 +225,6 @@ export async function createProgram(
   });
 
   return getProgramTree(organizationId, programId);
-}
-
-export async function getProgramTree(
-  organizationId: string,
-  programId: string,
-): Promise<ProgramTree> {
-  const raw = await fetchProgramRaw(organizationId, programId);
-
-  if (!raw) {
-    throw problem({
-      type: "not-found",
-      title: "Program not found",
-      status: 404,
-      detail: `Program ${programId} was not found in this organization.`,
-    });
-  }
-
-  return mapProgramTree(raw);
 }
 
 export async function patchProgramMetadata(
@@ -420,25 +325,32 @@ export async function duplicateProgram(
     });
   }
 
+  const programSource = source;
+
   const newProgramId = await db.transaction(async (tx) => {
     const [newProgram] = await tx
       .insert(programs)
       .values({
         organizationId,
         coachClerkUserId,
-        name: `${source.name} (copie)`,
-        description: source.description,
+        name: `${programSource.name} (copie)`,
+        description: programSource.description,
         status: "draft",
-        clonedFromProgramId: source.id,
+        clonedFromProgramId: programSource.id,
       })
       .returning({ id: programs.id });
 
-    for (const week of source.weeks) {
+    async function cloneWeekTree(
+      week: (typeof programSource.weeks)[number],
+      programId: string,
+      microcycleId: string | null,
+    ) {
       const [newWeek] = await tx
         .insert(programWeeks)
         .values({
           organizationId,
-          programId: newProgram!.id,
+          programId,
+          microcycleId,
           sortOrder: week.sortOrder,
           label: week.label,
         })
@@ -516,6 +428,59 @@ export async function duplicateProgram(
       }
     }
 
+    for (const mesocycle of programSource.mesocycles ?? []) {
+      const [newMesocycle] = await tx
+        .insert(programMesocycles)
+        .values({
+          organizationId,
+          programId: newProgram!.id,
+          sortOrder: mesocycle.sortOrder,
+          name: mesocycle.name,
+          description: mesocycle.description,
+          focus: mesocycle.focus,
+          targetDurationWeeks: mesocycle.targetDurationWeeks,
+        })
+        .returning({ id: programMesocycles.id });
+
+      for (const macrocycle of mesocycle.macrocycles) {
+        const [newMacrocycle] = await tx
+          .insert(programMacrocycles)
+          .values({
+            organizationId,
+            mesocycleId: newMesocycle!.id,
+            sortOrder: macrocycle.sortOrder,
+            name: macrocycle.name,
+            description: macrocycle.description,
+            focus: macrocycle.focus,
+            targetDurationWeeks: macrocycle.targetDurationWeeks,
+          })
+          .returning({ id: programMacrocycles.id });
+
+        for (const microcycle of macrocycle.microcycles) {
+          const [newMicrocycle] = await tx
+            .insert(programMicrocycles)
+            .values({
+              organizationId,
+              macrocycleId: newMacrocycle!.id,
+              sortOrder: microcycle.sortOrder,
+              name: microcycle.name,
+              description: microcycle.description,
+              focus: microcycle.focus,
+              targetDurationWeeks: microcycle.targetDurationWeeks,
+            })
+            .returning({ id: programMicrocycles.id });
+
+          for (const week of microcycle.weeks) {
+            await cloneWeekTree(week, newProgram!.id, newMicrocycle!.id);
+          }
+        }
+      }
+    }
+
+    for (const week of programSource.weeks) {
+      await cloneWeekTree(week, newProgram!.id, null);
+    }
+
     return newProgram!.id;
   });
 
@@ -556,11 +521,30 @@ export async function createWeek(
   const program = await getProgramRowOrThrow(organizationId, programId);
   assertProgramStructureEditable(program);
 
-  const sortOrder = await getNextWeekSortOrder(programId);
+  const sortOrder = await getNextWeekSortOrder(programId, input.microcycleId);
+
+  if (input.microcycleId) {
+    const microcycle = await db.query.programMicrocycles.findFirst({
+      where: and(
+        eq(programMicrocycles.organizationId, organizationId),
+        eq(programMicrocycles.id, input.microcycleId),
+      ),
+      with: { macrocycle: { with: { mesocycle: true } } },
+    });
+
+    if (!microcycle || microcycle.macrocycle.mesocycle.programId !== programId) {
+      throw problem({
+        type: "not-found",
+        title: "Microcycle not found",
+        status: 404,
+      });
+    }
+  }
 
   await db.insert(programWeeks).values({
     organizationId,
     programId,
+    microcycleId: input.microcycleId ?? null,
     sortOrder,
     label: input.label ?? `Semaine ${sortOrder + 1}`,
   });
@@ -593,10 +577,23 @@ export async function patchWeek(
     });
   }
 
-  await db
-    .update(programWeeks)
-    .set(input)
-    .where(eq(programWeeks.id, weekId));
+  if (input.microcycleId !== undefined) {
+    const { moveWeekToMicrocycle } = await import("./periodization");
+    return moveWeekToMicrocycle(
+      organizationId,
+      programId,
+      weekId,
+      input.microcycleId,
+    );
+  }
+
+  const { label, ...rest } = input;
+  const patch: { label?: string } = {};
+  if (label !== undefined) patch.label = label;
+
+  if (Object.keys(patch).length > 0) {
+    await db.update(programWeeks).set(patch).where(eq(programWeeks.id, weekId));
+  }
 
   return getProgramTree(organizationId, programId);
 }

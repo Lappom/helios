@@ -15,6 +15,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:backfill:periodization": "tsx scripts/backfill-program-periodization.ts",
     "db:seed:exercises": "tsx scripts/seed-exercises.ts",
     "db:seed:exercises:generate": "tsx scripts/generate-exercises-seed.ts",
     "env:sync": "vercel env pull .env.local"

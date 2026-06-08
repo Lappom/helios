@@ -22,6 +22,7 @@ const TRIGGER_LABELS: Record<AutomationTriggerType, string> = {
   assessment_submitted: "assessment.submitted",
   schedule_cron: "schedule.cron",
   subscription_renewal_due: "subscription.renewal_due",
+  mesocycle_completed: "mesocycle.completed",
 };
 
 type TriggerPickerProps = {

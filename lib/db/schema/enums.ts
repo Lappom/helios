@@ -62,6 +62,15 @@ export const programAssignmentStatusEnum = pgEnum("program_assignment_status", [
   "cancelled",
 ]);
 
+export const trainingPhaseFocusEnum = pgEnum("training_phase_focus", [
+  "strength",
+  "hypertrophy",
+  "power",
+  "endurance",
+  "deload",
+  "custom",
+]);
+
 export const sessionLogStatusEnum = pgEnum("session_log_status", [
   "in_progress",
   "completed",
@@ -250,10 +259,12 @@ export const automationTriggerTypeEnum = pgEnum("automation_trigger_type", [
   "assessment_submitted",
   "schedule_cron",
   "subscription_renewal_due",
+  "mesocycle_completed",
 ]);
 
 export const automationActionTypeEnum = pgEnum("automation_action_type", [
   "assign_program",
+  "assign_next_mesocycle",
   "assign_nutrition",
   "create_assessment",
   "send_notification",

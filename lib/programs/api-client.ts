@@ -74,9 +74,150 @@ export async function duplicateProgramRequest(
   return parseResponse<ProgramTree>(response);
 }
 
+export async function createMesocycleRequest(
+  programId: string,
+  input?: Record<string, unknown>,
+): Promise<ProgramTree> {
+  const response = await fetch(`/api/v1/programs/${programId}/mesocycles`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input ?? {}),
+  });
+  return parseResponse<ProgramTree>(response);
+}
+
+export async function patchMesocycleRequest(
+  programId: string,
+  mesocycleId: string,
+  input: Record<string, unknown>,
+): Promise<ProgramTree> {
+  const response = await fetch(
+    `/api/v1/programs/${programId}/mesocycles/${mesocycleId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+  return parseResponse<ProgramTree>(response);
+}
+
+export async function deleteMesocycleRequest(
+  programId: string,
+  mesocycleId: string,
+): Promise<ProgramTree> {
+  const response = await fetch(
+    `/api/v1/programs/${programId}/mesocycles/${mesocycleId}`,
+    { method: "DELETE" },
+  );
+  return parseResponse<ProgramTree>(response);
+}
+
+export async function reorderMesocyclesRequest(
+  programId: string,
+  ids: string[],
+): Promise<ProgramTree> {
+  const response = await fetch(
+    `/api/v1/programs/${programId}/mesocycles/reorder`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    },
+  );
+  return parseResponse<ProgramTree>(response);
+}
+
+export async function duplicateMesocycleRequest(
+  programId: string,
+  mesocycleId: string,
+): Promise<ProgramTree> {
+  const response = await fetch(
+    `/api/v1/programs/${programId}/mesocycles/${mesocycleId}/duplicate`,
+    { method: "POST" },
+  );
+  return parseResponse<ProgramTree>(response);
+}
+
+export async function createMacrocycleRequest(
+  programId: string,
+  mesocycleId: string,
+  input?: Record<string, unknown>,
+): Promise<ProgramTree> {
+  const response = await fetch(
+    `/api/v1/programs/${programId}/mesocycles/${mesocycleId}/macrocycles`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input ?? {}),
+    },
+  );
+  return parseResponse<ProgramTree>(response);
+}
+
+export async function patchMacrocycleRequest(
+  programId: string,
+  macrocycleId: string,
+  input: Record<string, unknown>,
+): Promise<ProgramTree> {
+  const response = await fetch(
+    `/api/v1/programs/${programId}/macrocycles/${macrocycleId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+  return parseResponse<ProgramTree>(response);
+}
+
+export async function createMicrocycleRequest(
+  programId: string,
+  macrocycleId: string,
+  input?: Record<string, unknown>,
+): Promise<ProgramTree> {
+  const response = await fetch(
+    `/api/v1/programs/${programId}/macrocycles/${macrocycleId}/microcycles`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input ?? {}),
+    },
+  );
+  return parseResponse<ProgramTree>(response);
+}
+
+export async function patchMicrocycleRequest(
+  programId: string,
+  microcycleId: string,
+  input: Record<string, unknown>,
+): Promise<ProgramTree> {
+  const response = await fetch(
+    `/api/v1/programs/${programId}/microcycles/${microcycleId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+  return parseResponse<ProgramTree>(response);
+}
+
+export async function moveWeekRequest(
+  weekId: string,
+  input: { microcycleId: string | null; label?: string },
+): Promise<ProgramTree> {
+  const response = await fetch(`/api/v1/program-weeks/${weekId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseResponse<ProgramTree>(response);
+}
+
 export async function createWeekRequest(
   programId: string,
-  input?: { label?: string },
+  input?: { label?: string; microcycleId?: string },
 ): Promise<ProgramTree> {
   const response = await fetch(`/api/v1/programs/${programId}/weeks`, {
     method: "POST",

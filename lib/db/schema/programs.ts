@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -12,6 +13,7 @@ import {
   blockTypeEnum,
   programAssignmentStatusEnum,
   programStatusEnum,
+  trainingPhaseFocusEnum,
 } from "./enums";
 import { clients } from "./clients";
 import { exercises } from "./exercises";
@@ -46,6 +48,90 @@ export const programs = pgTable(
   ],
 );
 
+const cycleBlockColumns = {
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  name: text("name").notNull(),
+  description: text("description"),
+  focus: trainingPhaseFocusEnum("focus"),
+  targetDurationWeeks: integer("target_duration_weeks"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+};
+
+export const programMesocycles = pgTable(
+  "program_mesocycles",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    programId: text("program_id")
+      .notNull()
+      .references(() => programs.id, { onDelete: "cascade" }),
+    ...cycleBlockColumns,
+  },
+  (t) => [
+    index("program_mesocycles_program_sort_idx").on(t.programId, t.sortOrder),
+    uniqueIndex("program_mesocycles_program_sort_unique_idx").on(
+      t.programId,
+      t.sortOrder,
+    ),
+  ],
+);
+
+export const programMacrocycles = pgTable(
+  "program_macrocycles",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    mesocycleId: text("mesocycle_id")
+      .notNull()
+      .references(() => programMesocycles.id, { onDelete: "cascade" }),
+    ...cycleBlockColumns,
+  },
+  (t) => [
+    index("program_macrocycles_mesocycle_sort_idx").on(
+      t.mesocycleId,
+      t.sortOrder,
+    ),
+    uniqueIndex("program_macrocycles_mesocycle_sort_unique_idx").on(
+      t.mesocycleId,
+      t.sortOrder,
+    ),
+  ],
+);
+
+export const programMicrocycles = pgTable(
+  "program_microcycles",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    macrocycleId: text("macrocycle_id")
+      .notNull()
+      .references(() => programMacrocycles.id, { onDelete: "cascade" }),
+    ...cycleBlockColumns,
+  },
+  (t) => [
+    index("program_microcycles_macrocycle_sort_idx").on(
+      t.macrocycleId,
+      t.sortOrder,
+    ),
+    uniqueIndex("program_microcycles_macrocycle_sort_unique_idx").on(
+      t.macrocycleId,
+      t.sortOrder,
+    ),
+  ],
+);
+
 export const programWeeks = pgTable(
   "program_weeks",
   {
@@ -58,6 +144,9 @@ export const programWeeks = pgTable(
     programId: text("program_id")
       .notNull()
       .references(() => programs.id, { onDelete: "cascade" }),
+    microcycleId: text("microcycle_id").references(() => programMicrocycles.id, {
+      onDelete: "cascade",
+    }),
     sortOrder: integer("sort_order").notNull().default(0),
     label: text("label").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -70,10 +159,13 @@ export const programWeeks = pgTable(
   },
   (t) => [
     index("program_weeks_program_sort_idx").on(t.programId, t.sortOrder),
-    uniqueIndex("program_weeks_program_sort_unique_idx").on(
-      t.programId,
-      t.sortOrder,
-    ),
+    index("program_weeks_microcycle_sort_idx").on(t.microcycleId, t.sortOrder),
+    uniqueIndex("program_weeks_microcycle_sort_unique_idx")
+      .on(t.microcycleId, t.sortOrder)
+      .where(sql`${t.microcycleId} IS NOT NULL`),
+    uniqueIndex("program_weeks_program_flat_sort_unique_idx")
+      .on(t.programId, t.sortOrder)
+      .where(sql`${t.microcycleId} IS NULL`),
   ],
 );
 
@@ -231,6 +323,10 @@ export const programAssignments = pgTable(
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
     coachClerkUserId: text("coach_clerk_user_id").notNull(),
+    startMesocycleId: text("start_mesocycle_id").references(
+      () => programMesocycles.id,
+      { onDelete: "set null" },
+    ),
     startDate: timestamp("start_date", { withTimezone: true }).notNull(),
     endDate: timestamp("end_date", { withTimezone: true }),
     status: programAssignmentStatusEnum("status").notNull().default("active"),

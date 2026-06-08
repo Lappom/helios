@@ -7,7 +7,14 @@ export function getProgramIdFromPath(request: Request): string {
   }
 
   const next = segments[programsIndex + 1]!;
-  if (next === "weeks" || next === "sessions" || next === "blocks") {
+  if (
+    next === "weeks" ||
+    next === "sessions" ||
+    next === "blocks" ||
+    next === "mesocycles" ||
+    next === "macrocycles" ||
+    next === "microcycles"
+  ) {
     return "";
   }
 
@@ -60,6 +67,31 @@ export function getBlockIdFromPath(request: Request): string {
   }
 
   return next;
+}
+
+function getSegmentAfter(request: Request, key: string, reserved: string[] = []) {
+  const segments = new URL(request.url).pathname.split("/").filter(Boolean);
+  const index = segments.indexOf(key);
+  if (index === -1 || !segments[index + 1]) return "";
+  const next = segments[index + 1]!;
+  if (reserved.includes(next)) return "";
+  return next;
+}
+
+export function getMesocycleIdFromPath(request: Request): string {
+  return getSegmentAfter(request, "mesocycles", ["reorder", "macrocycles"]);
+}
+
+export function getMacrocycleIdFromPath(request: Request): string {
+  return getSegmentAfter(request, "macrocycles", ["reorder", "microcycles"]);
+}
+
+export function getMicrocycleIdFromPath(request: Request): string {
+  return getSegmentAfter(request, "microcycles", ["reorder"]);
+}
+
+export function getProgramWeekIdFromPath(request: Request): string {
+  return getSegmentAfter(request, "program-weeks");
 }
 
 export function getBlockExerciseIdFromPath(request: Request): string {

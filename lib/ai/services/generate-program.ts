@@ -98,7 +98,22 @@ export async function generateProgramFromPrompt(
         inputSchema: programDraftSchema,
         execute: async (draft) => {
           submittedDraft = draft;
-          return { accepted: true, weekCount: draft.weeks.length };
+          const weekCount =
+            draft.mesocycles?.reduce(
+              (sum, meso) =>
+                sum +
+                meso.macrocycles.reduce(
+                  (macroSum, macro) =>
+                    macroSum +
+                    macro.microcycles.reduce(
+                      (microSum, micro) => microSum + micro.weeks.length,
+                      0,
+                    ),
+                  0,
+                ),
+              0,
+            ) ?? draft.weeks?.length ?? 0;
+          return { accepted: true, weekCount };
         },
       }),
     },

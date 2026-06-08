@@ -32,11 +32,14 @@ export async function executePathwayStep(
       const startDate = step.stepConfig.startDate
         ? new Date(String(step.stepConfig.startDate))
         : new Date();
+      const startMesocycleId = step.stepConfig.startMesocycleId
+        ? String(step.stepConfig.startMesocycleId)
+        : undefined;
       const result = await assignProgram(
         organizationId,
         programId,
         coachClerkUserId,
-        { clientIds: [clientId], startDate },
+        { clientIds: [clientId], startDate, startMesocycleId },
       );
       return {
         created: result.created.length,

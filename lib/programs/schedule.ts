@@ -1,3 +1,5 @@
+import type { TrainingPhaseFocus } from "@/lib/validators/programs";
+
 export type ScheduleSessionInput = {
   programSessionId: string;
   name: string;
@@ -5,6 +7,15 @@ export type ScheduleSessionInput = {
   weekSortOrder: number;
   sessionSortOrder: number;
   dayOfWeek: number | null;
+  mesocycleId?: string;
+  mesocycleName?: string;
+  macrocycleId?: string;
+  macrocycleName?: string;
+  microcycleId?: string;
+  microcycleName?: string;
+  focus?: TrainingPhaseFocus | null;
+  weekIndexInMicrocycle?: number;
+  weeksInMicrocycle?: number;
 };
 
 export type ScheduleOverride = {
@@ -21,6 +32,15 @@ export type ScheduledSession = {
   scheduledDate: Date;
   status: "planned";
   hasOverride: boolean;
+  mesocycleId?: string;
+  mesocycleName?: string;
+  macrocycleId?: string;
+  macrocycleName?: string;
+  microcycleId?: string;
+  microcycleName?: string;
+  focus?: TrainingPhaseFocus | null;
+  weekIndexInMicrocycle?: number;
+  weeksInMicrocycle?: number;
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -87,6 +107,15 @@ export function buildAssignmentSchedule(
         scheduledDate,
         status: "planned" as const,
         hasOverride: override !== undefined,
+        mesocycleId: session.mesocycleId,
+        mesocycleName: session.mesocycleName,
+        macrocycleId: session.macrocycleId,
+        macrocycleName: session.macrocycleName,
+        microcycleId: session.microcycleId,
+        microcycleName: session.microcycleName,
+        focus: session.focus,
+        weekIndexInMicrocycle: session.weekIndexInMicrocycle,
+        weeksInMicrocycle: session.weeksInMicrocycle,
       };
     })
     .sort(

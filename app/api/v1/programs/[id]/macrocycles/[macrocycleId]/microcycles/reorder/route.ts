@@ -1,0 +1,26 @@
+import { withApiHandler, jsonOk } from "@/lib/api/handler";
+import {
+  getMacrocycleIdFromPath,
+  getProgramIdFromPath,
+} from "@/lib/api/program-route";
+import { requireCoachWrite } from "@/lib/api/require-coach";
+import { reorderMicrocycles } from "@/lib/programs/periodization";
+import { parseJsonBody } from "@/lib/validators/clients";
+import { reorderSchema } from "@/lib/validators/programs";
+
+export const PUT = withApiHandler(
+  { requireOrg: true, requireFeature: "periodization" },
+  async ({ request }) => {
+    const org = await requireCoachWrite();
+    const programId = getProgramIdFromPath(request);
+    const macrocycleId = getMacrocycleIdFromPath(request);
+    const body = await parseJsonBody(reorderSchema, request);
+    const program = await reorderMicrocycles(
+      org.organizationId,
+      programId,
+      macrocycleId,
+      body.ids,
+    );
+    return jsonOk(program);
+  },
+);

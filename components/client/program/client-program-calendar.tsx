@@ -15,6 +15,7 @@ import {
   startOfWeekMonday,
   WEEKDAY_LABELS,
 } from "@/lib/programs/calendar-utils";
+import { getFocusLabel } from "@/components/coach/programs/program-focus-badge";
 import { fetchClientSchedule } from "@/lib/sessions/api-client";
 import type { EnrichedScheduledSession } from "@/lib/sessions/types";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,19 @@ export function ClientProgramCalendar() {
     };
   }, [range.end, range.start]);
 
+  const phaseBadge = useMemo(() => {
+    const todayKey = formatDayKey(new Date());
+    const ref =
+      sessions.find((session) => session.scheduledDateKey === todayKey) ??
+      sessions[0];
+    if (!ref?.microcycleName) return null;
+    const label = getFocusLabel(ref.focus) ?? ref.microcycleName;
+    if (ref.weekIndexInMicrocycle && ref.weeksInMicrocycle) {
+      return `${label} — S${ref.weekIndexInMicrocycle}/${ref.weeksInMicrocycle}`;
+    }
+    return label;
+  }, [sessions]);
+
   const sessionsByDay = useMemo(() => {
     const map = new Map<string, EnrichedScheduledSession[]>();
     for (const session of sessions) {
@@ -118,6 +132,11 @@ export function ClientProgramCalendar() {
           </h1>
           {programName ? (
             <p className="text-body-md text-muted mt-1">{programName}</p>
+          ) : null}
+          {phaseBadge ? (
+            <p className="text-body-sm text-primary mt-2 font-medium">
+              {phaseBadge}
+            </p>
           ) : null}
         </div>
         <Tabs
@@ -181,21 +200,34 @@ export function ClientProgramCalendar() {
                   {day.getDate()}
                 </p>
                 <div className="space-y-1">
-                  {daySessions.map((session) => (
-                    <Link
-                      key={`${session.programSessionId}-${session.scheduledDateKey}`}
-                      href={`/client/session/${session.programSessionId}?scheduledDate=${session.scheduledDateKey}`}
-                      className="border-hairline bg-surface-elevated hover:border-primary/40 block rounded-md border px-2 py-1.5 transition-colors"
-                    >
-                      <p className="text-caption text-on-dark line-clamp-2 font-medium">
-                        {session.name}
-                      </p>
-                      <SessionStatusBadge
-                        status={session.status}
-                        className="mt-1 scale-90"
-                      />
-                    </Link>
-                  ))}
+                  {daySessions.map((session, index) => {
+                    const prev = daySessions[index - 1];
+                    const showMicrocycleDivider =
+                      session.microcycleId &&
+                      prev?.microcycleId !== session.microcycleId;
+
+                    return (
+                      <div key={`${session.programSessionId}-${session.scheduledDateKey}`}>
+                        {showMicrocycleDivider ? (
+                          <p className="text-muted border-hairline mb-1 truncate border-t pt-1 text-[10px] font-medium">
+                            {session.microcycleName}
+                          </p>
+                        ) : null}
+                        <Link
+                          href={`/client/session/${session.programSessionId}?scheduledDate=${session.scheduledDateKey}`}
+                          className="border-hairline bg-surface-elevated hover:border-primary/40 block rounded-md border px-2 py-1.5 transition-colors"
+                        >
+                          <p className="text-caption text-on-dark line-clamp-2 font-medium">
+                            {session.name}
+                          </p>
+                          <SessionStatusBadge
+                            status={session.status}
+                            className="mt-1 scale-90"
+                          />
+                        </Link>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

@@ -117,6 +117,7 @@ export const CLERK_FEATURE_SLUGS = [
   "coaching_journeys",
   "shop",
   "referral_program",
+  "periodization",
   "priority_support",
 ] as const;
 

@@ -157,7 +157,11 @@ function DraggableSessionCard({
     >
       <p className="text-on-dark truncate text-xs font-medium">{session.name}</p>
       {!compact ? (
-        <p className="text-muted truncate text-[10px]">{session.weekLabel}</p>
+        <p className="text-muted truncate text-[10px]">
+          {session.microcycleName
+            ? `${session.microcycleName} · ${session.weekLabel}`
+            : session.weekLabel}
+        </p>
       ) : null}
     </div>
   );

@@ -70,12 +70,20 @@ export type LoadProgressionPoint = {
   maxLoad: number | null;
 };
 
+export type MesocycleAnalyticsPoint = {
+  mesocycleId: string;
+  mesocycleName: string;
+  completedSessionsCount: number;
+  totalVolume: number;
+};
+
 export type ProgramAnalytics = {
   programId: string;
   clientId: string;
   completedSessionsCount: number;
   volumeBySession: VolumeBySessionPoint[];
   loadProgression: LoadProgressionPoint[];
+  volumeByMesocycle?: MesocycleAnalyticsPoint[];
 };
 
 export type ClientSchedulePayload = {

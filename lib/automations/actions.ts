@@ -209,15 +209,69 @@ export async function executeAutomationAction(
       const startDate = action.actionConfig.startDate
         ? new Date(String(action.actionConfig.startDate))
         : new Date();
+      const startMesocycleId = action.actionConfig.startMesocycleId
+        ? String(action.actionConfig.startMesocycleId)
+        : undefined;
       const result = await assignProgram(
         organizationId,
         programId,
         coachClerkUserId,
-        { clientIds: [clientId], startDate },
+        { clientIds: [clientId], startDate, startMesocycleId },
       );
       return {
         created: result.created.length,
         skipped: result.skipped,
+      };
+    }
+    case "assign_next_mesocycle": {
+      if (!clientId) throw new Error("Client is required.");
+      const programId = String(action.actionConfig.programId);
+      const completedMesocycleId = String(
+        action.actionConfig.completedMesocycleId,
+      );
+      const { asc, eq, and } = await import("drizzle-orm");
+      const { db } = await import("@/lib/db");
+      const { programMesocycles } = await import("@/lib/db/schema");
+      const completed = await db.query.programMesocycles.findFirst({
+        where: and(
+          eq(programMesocycles.organizationId, organizationId),
+          eq(programMesocycles.programId, programId),
+          eq(programMesocycles.id, completedMesocycleId),
+        ),
+      });
+      if (!completed) {
+        throw new Error("Completed mesocycle not found.");
+      }
+      const candidates = await db.query.programMesocycles.findMany({
+        where: and(
+          eq(programMesocycles.organizationId, organizationId),
+          eq(programMesocycles.programId, programId),
+        ),
+        orderBy: [asc(programMesocycles.sortOrder)],
+      });
+      const next = candidates.find(
+        (row) => row.sortOrder > completed.sortOrder,
+      );
+      if (!next) {
+        return { created: 0, skipped: [{ clientId, reason: "No next mesocycle." }] };
+      }
+      const startDate = action.actionConfig.startDate
+        ? new Date(String(action.actionConfig.startDate))
+        : new Date();
+      const result = await assignProgram(
+        organizationId,
+        programId,
+        coachClerkUserId,
+        {
+          clientIds: [clientId],
+          startDate,
+          startMesocycleId: next.id,
+        },
+      );
+      return {
+        created: result.created.length,
+        skipped: result.skipped,
+        nextMesocycleId: next.id,
       };
     }
     case "assign_nutrition": {

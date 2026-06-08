@@ -9,10 +9,12 @@ export const AUTOMATION_TRIGGER_TYPES = [
   "assessment_submitted",
   "schedule_cron",
   "subscription_renewal_due",
+  "mesocycle_completed",
 ] as const;
 
 export const AUTOMATION_ACTION_TYPES = [
   "assign_program",
+  "assign_next_mesocycle",
   "assign_nutrition",
   "create_assessment",
   "send_notification",
@@ -41,6 +43,13 @@ const cronTriggerConfigSchema = z.object({
 
 const assignProgramConfigSchema = z.object({
   programId: z.string().min(1),
+  startDate: z.string().datetime().optional(),
+  startMesocycleId: z.string().min(1).optional(),
+});
+
+const assignNextMesocycleConfigSchema = z.object({
+  programId: z.string().min(1),
+  completedMesocycleId: z.string().min(1),
   startDate: z.string().datetime().optional(),
 });
 
@@ -123,6 +132,9 @@ export function validateActionConfig(
   switch (actionType) {
     case "assign_program":
       assignProgramConfigSchema.parse(config);
+      break;
+    case "assign_next_mesocycle":
+      assignNextMesocycleConfigSchema.parse(config);
       break;
     case "assign_nutrition":
       assignNutritionConfigSchema.parse(config);

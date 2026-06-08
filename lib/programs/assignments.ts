@@ -4,17 +4,17 @@ import {
   assignmentSessionOverrides,
   clients,
   programAssignments,
+  programMesocycles,
   programSessions,
   programs,
-  programWeeks,
 } from "@/lib/db/schema";
 import { problem } from "@/lib/api/response";
 import type { AssignProgramInput } from "@/lib/validators/programs";
+import { loadScheduleSessionInputs } from "./schedule-inputs";
 import {
   buildAssignmentSchedule,
   filterScheduleByRange,
   type ScheduledSession,
-  type ScheduleSessionInput,
 } from "./schedule";
 import type {
   ProgramAssignmentItem,
@@ -86,6 +86,7 @@ function mapAssignmentRow(
     programId: row.programId,
     clientId: row.clientId,
     coachClerkUserId: row.coachClerkUserId,
+    startMesocycleId: row.startMesocycleId,
     startDate: row.startDate,
     endDate: row.endDate,
     status: row.status,
@@ -96,41 +97,6 @@ function mapAssignmentRow(
     clientLastName: row.client?.lastName,
     clientEmail: row.client?.email,
   };
-}
-
-async function loadScheduleSessionInputs(
-  organizationId: string,
-  programId: string,
-): Promise<ScheduleSessionInput[]> {
-  const weeks = await db.query.programWeeks.findMany({
-    where: and(
-      eq(programWeeks.organizationId, organizationId),
-      eq(programWeeks.programId, programId),
-    ),
-    orderBy: [asc(programWeeks.sortOrder)],
-    with: {
-      sessions: {
-        orderBy: [asc(programSessions.sortOrder)],
-      },
-    },
-  });
-
-  const inputs: ScheduleSessionInput[] = [];
-
-  for (const week of weeks) {
-    for (const session of week.sessions) {
-      inputs.push({
-        programSessionId: session.id,
-        name: session.name,
-        weekLabel: week.label,
-        weekSortOrder: week.sortOrder,
-        sessionSortOrder: session.sortOrder,
-        dayOfWeek: session.dayOfWeek,
-      });
-    }
-  }
-
-  return inputs;
 }
 
 export async function listProgramAssignments(
@@ -225,6 +191,23 @@ export async function assignProgram(
       continue;
     }
 
+    if (input.startMesocycleId) {
+      const mesocycle = await db.query.programMesocycles.findFirst({
+        where: and(
+          eq(programMesocycles.organizationId, organizationId),
+          eq(programMesocycles.programId, programId),
+          eq(programMesocycles.id, input.startMesocycleId),
+        ),
+      });
+      if (!mesocycle) {
+        skipped.push({
+          clientId,
+          reason: "Start mesocycle not found on this program.",
+        });
+        continue;
+      }
+    }
+
     const [inserted] = await db
       .insert(programAssignments)
       .values({
@@ -233,6 +216,7 @@ export async function assignProgram(
         clientId,
         coachClerkUserId,
         startDate: input.startDate,
+        startMesocycleId: input.startMesocycleId ?? null,
         status: "active",
       })
       .returning();
@@ -360,7 +344,9 @@ export async function getAssignmentSchedule(
   const assignment = await getAssignmentOrThrow(organizationId, assignmentId);
 
   const [sessionInputs, overrides] = await Promise.all([
-    loadScheduleSessionInputs(organizationId, assignment.programId),
+    loadScheduleSessionInputs(organizationId, assignment.programId, {
+      startMesocycleId: assignment.startMesocycleId,
+    }),
     db.query.assignmentSessionOverrides.findMany({
       where: eq(assignmentSessionOverrides.assignmentId, assignmentId),
     }),
