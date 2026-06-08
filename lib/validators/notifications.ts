@@ -15,6 +15,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   "message_new",
   "program_published",
   "drive_file_shared",
+  "questionnaire_due",
+  "questionnaire_reminder",
 ] as const;
 
 const cronExpressionSchema = z

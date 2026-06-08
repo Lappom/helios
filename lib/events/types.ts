@@ -67,8 +67,10 @@ export type SessionCompletedPayload = {
 export type FormCompletedPayload = {
   organizationId: string;
   clientId: string;
-  sessionLogId: string;
-  feedbackId: string;
+  sessionLogId?: string;
+  feedbackId?: string;
+  submissionId?: string;
+  questionnaireId?: string;
 };
 
 export type HeliosEventPayload = {

@@ -162,6 +162,13 @@
       "when": 1780908914132,
       "tag": "0022_hard_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1780910064978,
+      "tag": "0023_dry_mole_man",
+      "breakpoints": true
     }
   ]
 }

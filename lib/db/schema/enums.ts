@@ -104,6 +104,27 @@ export const feedbackQuestionTypeEnum = pgEnum("feedback_question_type", [
   "boolean",
 ]);
 
+export const questionnaireTypeEnum = pgEnum("questionnaire_type", [
+  "onboarding",
+  "weekly_checkin",
+  "custom",
+]);
+
+export const questionnaireQuestionTypeEnum = pgEnum(
+  "questionnaire_question_type",
+  ["scale", "text", "boolean", "select"],
+);
+
+export const questionnaireScheduleTriggerEnum = pgEnum(
+  "questionnaire_schedule_trigger",
+  ["on_client_created", "weekly_cron"],
+);
+
+export const questionnaireSubmissionStatusEnum = pgEnum(
+  "questionnaire_submission_status",
+  ["pending", "submitted", "overdue"],
+);
+
 export const habitFrequencyEnum = pgEnum("habit_frequency", [
   "daily",
   "weekly",
@@ -180,6 +201,8 @@ export const notificationEventTypeEnum = pgEnum("notification_event_type", [
   "message_new",
   "program_published",
   "drive_file_shared",
+  "questionnaire_due",
+  "questionnaire_reminder",
 ]);
 
 export const notificationLogStatusEnum = pgEnum("notification_log_status", [

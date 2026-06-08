@@ -89,4 +89,26 @@ export const SYSTEM_NOTIFICATION_TEMPLATES: SystemTemplateSeed[] = [
     isActive: true,
     isSystem: true,
   },
+  {
+    name: "Questionnaire à compléter",
+    channel: "email",
+    subject: "Questionnaire : {{questionnaireName}}",
+    content:
+      "Bonjour {{clientName}},\n\nUn questionnaire « {{questionnaireName}} » est à compléter. Connectez-vous à Helios pour le remplir.",
+    trigger: "event",
+    eventType: "questionnaire_due",
+    isActive: true,
+    isSystem: true,
+  },
+  {
+    name: "Rappel questionnaire",
+    channel: "email",
+    subject: "Rappel : {{questionnaireName}}",
+    content:
+      "Bonjour {{clientName}},\n\nN'oubliez pas de compléter le questionnaire « {{questionnaireName}} » cette semaine.",
+    trigger: "event",
+    eventType: "questionnaire_reminder",
+    isActive: true,
+    isSystem: true,
+  },
 ];

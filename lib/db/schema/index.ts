@@ -80,6 +80,13 @@ import {
   automations,
 } from "./automations";
 import { coachTasks } from "./coach-tasks";
+import {
+  questionnaireQuestions,
+  questionnaireResponses,
+  questionnaireSchedules,
+  questionnaireSubmissions,
+  questionnaires,
+} from "./questionnaires";
 
 export * from "./enums";
 export * from "./organization";
@@ -103,6 +110,7 @@ export * from "./drive";
 export * from "./videos";
 export * from "./automations";
 export * from "./coach-tasks";
+export * from "./questionnaires";
 
 export const organizationsRelations = relations(
   organizations,
@@ -152,6 +160,11 @@ export const organizationsRelations = relations(
     automationExecutions: many(automationExecutions),
     actionLogs: many(actionLogs),
     coachTasks: many(coachTasks),
+    questionnaires: many(questionnaires),
+    questionnaireQuestions: many(questionnaireQuestions),
+    questionnaireSchedules: many(questionnaireSchedules),
+    questionnaireSubmissions: many(questionnaireSubmissions),
+    questionnaireResponses: many(questionnaireResponses),
   }),
 );
 
@@ -183,6 +196,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   conversationParticipants: many(conversationParticipants),
   driveShares: many(driveShares),
   videoAccess: many(videoAccess),
+  questionnaireSubmissions: many(questionnaireSubmissions),
 }));
 
 export const clientNotesRelations = relations(clientNotes, ({ one }) => ({
@@ -1173,3 +1187,90 @@ export const coachTasksRelations = relations(coachTasks, ({ one }) => ({
     references: [automations.id],
   }),
 }));
+
+export const questionnairesRelations = relations(
+  questionnaires,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [questionnaires.organizationId],
+      references: [organizations.id],
+    }),
+    questions: many(questionnaireQuestions),
+    schedule: one(questionnaireSchedules, {
+      fields: [questionnaires.id],
+      references: [questionnaireSchedules.questionnaireId],
+    }),
+    submissions: many(questionnaireSubmissions),
+  }),
+);
+
+export const questionnaireQuestionsRelations = relations(
+  questionnaireQuestions,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [questionnaireQuestions.organizationId],
+      references: [organizations.id],
+    }),
+    questionnaire: one(questionnaires, {
+      fields: [questionnaireQuestions.questionnaireId],
+      references: [questionnaires.id],
+    }),
+    responses: many(questionnaireResponses),
+  }),
+);
+
+export const questionnaireSchedulesRelations = relations(
+  questionnaireSchedules,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [questionnaireSchedules.organizationId],
+      references: [organizations.id],
+    }),
+    questionnaire: one(questionnaires, {
+      fields: [questionnaireSchedules.questionnaireId],
+      references: [questionnaires.id],
+    }),
+    submissions: many(questionnaireSubmissions),
+  }),
+);
+
+export const questionnaireSubmissionsRelations = relations(
+  questionnaireSubmissions,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [questionnaireSubmissions.organizationId],
+      references: [organizations.id],
+    }),
+    questionnaire: one(questionnaires, {
+      fields: [questionnaireSubmissions.questionnaireId],
+      references: [questionnaires.id],
+    }),
+    schedule: one(questionnaireSchedules, {
+      fields: [questionnaireSubmissions.scheduleId],
+      references: [questionnaireSchedules.id],
+    }),
+    client: one(clients, {
+      fields: [questionnaireSubmissions.clientId],
+      references: [clients.id],
+    }),
+    responses: many(questionnaireResponses),
+  }),
+);
+
+export const questionnaireResponsesRelations = relations(
+  questionnaireResponses,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [questionnaireResponses.organizationId],
+      references: [organizations.id],
+    }),
+    submission: one(questionnaireSubmissions, {
+      fields: [questionnaireResponses.submissionId],
+      references: [questionnaireSubmissions.id],
+    }),
+    question: one(questionnaireQuestions, {
+      fields: [questionnaireResponses.questionId],
+      references: [questionnaireQuestions.id],
+    }),
+  }),
+);

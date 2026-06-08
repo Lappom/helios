@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SessionStatusBadge } from "@/components/client/session-status-badge";
 import { ClientPendingAssessmentBanner } from "@/components/client/assessment/client-pending-assessment-banner";
+import { ClientPendingQuestionnaireBanner } from "@/components/client/questionnaires/client-pending-questionnaire-banner";
 import { ClientHabitsHomeWidget } from "@/components/client/habits/client-habits-home-widget";
 import { Button } from "@/components/ui/button";
 import type { ClientHabitsSummary } from "@/lib/habits/types";
@@ -59,6 +60,7 @@ export function ClientHomeContent({
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <ClientPendingAssessmentBanner />
+      <ClientPendingQuestionnaireBanner />
 
       {habitsSummary ? (
         <ClientHabitsHomeWidget summary={habitsSummary} />
