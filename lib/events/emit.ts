@@ -4,7 +4,8 @@ export type HeliosEventName =
   | "payment.received"
   | "program.published"
   | "message.new"
-  | "drive.file.shared";
+  | "drive.file.shared"
+  | "video.published";
 
 export type ClientCreatedPayload = {
   organizationId: string;
@@ -47,6 +48,13 @@ export type DriveFileSharedPayload = {
   folderId?: string;
 };
 
+export type VideoPublishedPayload = {
+  organizationId: string;
+  videoId: string;
+  coachClerkUserId: string;
+  visibility: "all_clients" | "selected";
+};
+
 export type HeliosEventPayload = {
   "client.created": ClientCreatedPayload;
   "assessment.submitted": {
@@ -58,6 +66,7 @@ export type HeliosEventPayload = {
   "program.published": ProgramPublishedPayload;
   "message.new": MessageNewPayload;
   "drive.file.shared": DriveFileSharedPayload;
+  "video.published": VideoPublishedPayload;
 };
 
 export function emitHeliosEvent<T extends HeliosEventName>(

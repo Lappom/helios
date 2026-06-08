@@ -393,3 +393,74 @@ export async function putDriveFile(
 export async function getDriveFileBlob(pathname: string) {
   return get(pathname, { access: "private" });
 }
+
+export function assertVodVideoUploadAllowed(
+  planTier: PlanTier,
+  file: File,
+): void {
+  if (
+    !ALLOWED_VIDEO_MIME_TYPES.includes(
+      file.type as (typeof ALLOWED_VIDEO_MIME_TYPES)[number],
+    )
+  ) {
+    throw problem({
+      type: "validation-error",
+      title: "Unsupported video format",
+      status: 400,
+      detail: "Allowed formats: MP4, MOV, WebM.",
+    });
+  }
+
+  const maxBytes = getPlanLimit(planTier, "vodVideo");
+  if (file.size > maxBytes) {
+    throw problem({
+      type: "quota-exceeded",
+      title: "Video too large",
+      status: 413,
+      detail: `Maximum video size for your plan is ${Math.round(maxBytes / (1024 * 1024))} MB.`,
+    });
+  }
+}
+
+export async function putVodVideo(
+  file: File,
+  params: { organizationId: string; videoId: string },
+): Promise<{ pathname: string; mimeType: string; sizeBytes: number }> {
+  const extension = VIDEO_MIME_TO_EXTENSION[file.type] ?? "mp4";
+  const pathname = `vod/${params.organizationId}/${params.videoId}.${extension}`;
+
+  await put(pathname, file, {
+    access: "private",
+    addRandomSuffix: false,
+    contentType: file.type,
+  });
+
+  return {
+    pathname,
+    mimeType: file.type,
+    sizeBytes: file.size,
+  };
+}
+
+export async function putVodThumbnail(
+  file: File | Blob,
+  params: { organizationId: string; videoId: string },
+): Promise<{ pathname: string }> {
+  const pathname = `vod/${params.organizationId}/${params.videoId}-thumb.jpg`;
+
+  await put(pathname, file, {
+    access: "private",
+    addRandomSuffix: false,
+    contentType: "image/jpeg",
+  });
+
+  return { pathname };
+}
+
+export async function getVodVideoBlob(pathname: string) {
+  return get(pathname, { access: "private" });
+}
+
+export async function getVodThumbnailBlob(pathname: string) {
+  return get(pathname, { access: "private" });
+}

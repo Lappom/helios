@@ -72,6 +72,7 @@ import {
   messages,
 } from "./messaging";
 import { driveFiles, driveFolders, driveShares } from "./drive";
+import { videoAccess, videoCategories, videos } from "./videos";
 
 export * from "./enums";
 export * from "./organization";
@@ -92,6 +93,7 @@ export * from "./payments";
 export * from "./notifications";
 export * from "./messaging";
 export * from "./drive";
+export * from "./videos";
 
 export const organizationsRelations = relations(
   organizations,
@@ -133,6 +135,9 @@ export const organizationsRelations = relations(
     driveFolders: many(driveFolders),
     driveFiles: many(driveFiles),
     driveShares: many(driveShares),
+    videoCategories: many(videoCategories),
+    videos: many(videos),
+    videoAccess: many(videoAccess),
   }),
 );
 
@@ -163,6 +168,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   conversations: many(conversations),
   conversationParticipants: many(conversationParticipants),
   driveShares: many(driveShares),
+  videoAccess: many(videoAccess),
 }));
 
 export const clientNotesRelations = relations(clientNotes, ({ one }) => ({
@@ -1040,6 +1046,44 @@ export const driveSharesRelations = relations(driveShares, ({ one }) => ({
   }),
   client: one(clients, {
     fields: [driveShares.clientId],
+    references: [clients.id],
+  }),
+}));
+
+export const videoCategoriesRelations = relations(
+  videoCategories,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [videoCategories.organizationId],
+      references: [organizations.id],
+    }),
+    videos: many(videos),
+  }),
+);
+
+export const videosRelations = relations(videos, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [videos.organizationId],
+    references: [organizations.id],
+  }),
+  category: one(videoCategories, {
+    fields: [videos.categoryId],
+    references: [videoCategories.id],
+  }),
+  accessList: many(videoAccess),
+}));
+
+export const videoAccessRelations = relations(videoAccess, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [videoAccess.organizationId],
+    references: [organizations.id],
+  }),
+  video: one(videos, {
+    fields: [videoAccess.videoId],
+    references: [videos.id],
+  }),
+  client: one(clients, {
+    fields: [videoAccess.clientId],
     references: [clients.id],
   }),
 }));

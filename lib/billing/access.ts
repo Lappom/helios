@@ -56,6 +56,7 @@ export async function checkQuota(quota: QuotaType): Promise<QuotaCheckResult> {
     ai: subscription?.aiCreditsUsed ?? 0,
     notifications: subscription?.notificationsSent ?? 0,
     exerciseVideo: 0,
+    vodVideo: 0,
     driveFile: 0,
     driveStorage: 0,
   };

@@ -211,3 +211,10 @@ export const messageTypeEnum = pgEnum("message_type", [
 export const driveSharePermissionEnum = pgEnum("drive_share_permission", [
   "read",
 ]);
+
+export const videoSourceEnum = pgEnum("video_source", ["youtube", "upload"]);
+
+export const videoVisibilityEnum = pgEnum("video_visibility", [
+  "all_clients",
+  "selected",
+]);

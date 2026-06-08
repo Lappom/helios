@@ -6,6 +6,7 @@ export type QuotaType =
   | "ai"
   | "notifications"
   | "exerciseVideo"
+  | "vodVideo"
   | "driveFile"
   | "driveStorage";
 
@@ -21,6 +22,7 @@ export const PLAN_LIMITS: Record<
     ai: 500,
     notifications: 200,
     exerciseVideo: 250 * 1024 * 1024,
+    vodVideo: 250 * 1024 * 1024,
     driveFile: 100 * 1024 * 1024,
     driveStorage: 5 * 1024 * 1024 * 1024,
   },
@@ -29,6 +31,7 @@ export const PLAN_LIMITS: Record<
     ai: 5000,
     notifications: 1000,
     exerciseVideo: 500 * 1024 * 1024,
+    vodVideo: 500 * 1024 * 1024,
     driveFile: 250 * 1024 * 1024,
     driveStorage: 25 * 1024 * 1024 * 1024,
   },
@@ -37,6 +40,7 @@ export const PLAN_LIMITS: Record<
     ai: 10000,
     notifications: 5000,
     exerciseVideo: 1024 * 1024 * 1024,
+    vodVideo: 1024 * 1024 * 1024,
     driveFile: 500 * 1024 * 1024,
     driveStorage: 100 * 1024 * 1024 * 1024,
   },
@@ -45,6 +49,7 @@ export const PLAN_LIMITS: Record<
     ai: Number.POSITIVE_INFINITY,
     notifications: Number.POSITIVE_INFINITY,
     exerciseVideo: 2 * 1024 * 1024 * 1024,
+    vodVideo: 2 * 1024 * 1024 * 1024,
     driveFile: 2 * 1024 * 1024 * 1024,
     driveStorage: 500 * 1024 * 1024 * 1024,
   },
@@ -80,6 +85,10 @@ export function getPlanLimit(planTier: PlanTier, quota: QuotaType): number {
 
 export function getExerciseVideoLimitMb(planTier: PlanTier): number {
   return Math.round(getPlanLimit(planTier, "exerciseVideo") / (1024 * 1024));
+}
+
+export function getVodVideoLimitMb(planTier: PlanTier): number {
+  return Math.round(getPlanLimit(planTier, "vodVideo") / (1024 * 1024));
 }
 
 export function getDriveFileLimitMb(planTier: PlanTier): number {

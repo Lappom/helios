@@ -20,6 +20,7 @@ import {
   labelMuscle,
 } from "@/lib/exercises/constants";
 import type { ExerciseCategoryItem, ExerciseListItem } from "@/lib/exercises/types";
+import { extractYoutubeId, getYoutubeEmbedUrl } from "@/lib/videos/youtube";
 
 type ExercisePreviewModalProps = {
   exercise: ExerciseListItem | null;
@@ -31,15 +32,6 @@ type ExercisePreviewModalProps = {
   onUpdated?: (exercise: ExerciseListItem) => void;
   onCategoriesChange?: () => void;
 };
-
-function getYoutubeEmbedUrl(url?: string): string | null {
-  if (!url) return null;
-  const match = url.match(
-    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/,
-  );
-  if (!match?.[1]) return null;
-  return `https://www.youtube.com/embed/${match[1]}`;
-}
 
 export function ExercisePreviewModal({
   exercise,
@@ -56,7 +48,10 @@ export function ExercisePreviewModal({
 
   if (!exercise) return null;
 
-  const youtubeEmbed = getYoutubeEmbedUrl(exercise.media.videoUrl);
+  const youtubeId = exercise.media.videoUrl
+    ? extractYoutubeId(exercise.media.videoUrl)
+    : null;
+  const youtubeEmbed = youtubeId ? getYoutubeEmbedUrl(youtubeId) : null;
   const isBlobVideo =
     exercise.media.videoType === "blob" && exercise.media.videoUrl;
 

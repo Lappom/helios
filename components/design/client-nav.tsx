@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Home,
   MessageSquare,
+  Play,
   TrendingUp,
   Dumbbell,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { href: "/client/progress", label: "Progrès", icon: TrendingUp },
   { href: "/client/messages", label: "Messages", icon: MessageSquare },
   { href: "/client/drive", label: "Documents", icon: FolderOpen },
+  { href: "/client/videos", label: "Vidéos", icon: Play },
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {
