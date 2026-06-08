@@ -120,6 +120,13 @@
       "when": 1780884041266,
       "tag": "0016_sparkling_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1780884411268,
+      "tag": "0017_illegal_wolf_cub",
+      "breakpoints": true
     }
   ]
 }

@@ -157,8 +157,73 @@ export async function handleHeliosNotificationEvent<
       );
       return;
     }
-    case "message.new":
+    case "message.new": {
+      const messagePayload = payload as HeliosEventPayload["message.new"];
+      const client = await db.query.clients.findFirst({
+        where: and(
+          eq(clients.organizationId, messagePayload.organizationId),
+          eq(clients.id, messagePayload.clientId),
+        ),
+        columns: {
+          id: true,
+          email: true,
+          clerkUserId: true,
+          firstName: true,
+          lastName: true,
+        },
+      });
+
+      if (!client) {
+        return;
+      }
+
+      const idempotencyKey = `message.new:${messagePayload.messageId}`;
+      const senderIsClient =
+        client.clerkUserId !== null &&
+        client.clerkUserId === messagePayload.senderClerkUserId;
+
+      if (senderIsClient) {
+        const coaches = await getCoachRecipientEmails(
+          messagePayload.organizationId,
+        );
+        if (coaches.length === 0) {
+          return;
+        }
+
+        const planTier = await getOrganizationPlanTier(
+          messagePayload.organizationId,
+        );
+        await dispatchNotification({
+          organizationId: messagePayload.organizationId,
+          planTier,
+          channel: "email",
+          subject: "Nouveau message client",
+          content:
+            "Un client vient de vous envoyer un message. Répondez depuis votre espace coach.",
+          recipients: coaches.map((coach) => ({
+            email: coach.email,
+            clerkUserId: coach.clerkUserId,
+          })),
+          metadata: {
+            url: `/coach/messages?conversationId=${messagePayload.conversationId}`,
+          },
+          idempotencyKey,
+        });
+        return;
+      }
+
+      await dispatchEventNotification(
+        messagePayload.organizationId,
+        "message_new",
+        [{ clientId: client.id, email: client.email }],
+        {
+          url: "/client/messages",
+          clientName: `${client.firstName} ${client.lastName}`.trim(),
+        },
+        idempotencyKey,
+      );
       return;
+    }
     default:
       return;
   }

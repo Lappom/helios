@@ -33,6 +33,7 @@ export type MessageNewPayload = {
   conversationId: string;
   clientId: string;
   senderClerkUserId: string;
+  messageId: string;
 };
 
 export type HeliosEventPayload = {

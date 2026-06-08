@@ -188,3 +188,21 @@ export const notificationLogStatusEnum = pgEnum("notification_log_status", [
   "opened",
   "clicked",
 ]);
+
+export const conversationTypeEnum = pgEnum("conversation_type", [
+  "direct",
+  "group",
+]);
+
+export const conversationParticipantRoleEnum = pgEnum(
+  "conversation_participant_role",
+  ["coach", "client"],
+);
+
+export const messageTypeEnum = pgEnum("message_type", [
+  "text",
+  "image",
+  "video",
+  "audio",
+  "file",
+]);

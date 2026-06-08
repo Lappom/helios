@@ -66,6 +66,11 @@ import {
   notificationTemplates,
   pushSubscriptions,
 } from "./notifications";
+import {
+  conversationParticipants,
+  conversations,
+  messages,
+} from "./messaging";
 
 export * from "./enums";
 export * from "./organization";
@@ -84,6 +89,7 @@ export * from "./bookings";
 export * from "./promo-codes";
 export * from "./payments";
 export * from "./notifications";
+export * from "./messaging";
 
 export const organizationsRelations = relations(
   organizations,
@@ -119,6 +125,9 @@ export const organizationsRelations = relations(
     notificationTemplates: many(notificationTemplates),
     notificationLogs: many(notificationLogs),
     pushSubscriptions: many(pushSubscriptions),
+    conversations: many(conversations),
+    conversationParticipants: many(conversationParticipants),
+    messages: many(messages),
   }),
 );
 
@@ -146,6 +155,8 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   habitLogs: many(habitLogs),
   notificationLogs: many(notificationLogs),
   pushSubscriptions: many(pushSubscriptions),
+  conversations: many(conversations),
+  conversationParticipants: many(conversationParticipants),
 }));
 
 export const clientNotesRelations = relations(clientNotes, ({ one }) => ({
@@ -936,3 +947,44 @@ export const pushSubscriptionsRelations = relations(
     }),
   }),
 );
+
+export const conversationsRelations = relations(
+  conversations,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [conversations.organizationId],
+      references: [organizations.id],
+    }),
+    client: one(clients, {
+      fields: [conversations.clientId],
+      references: [clients.id],
+    }),
+    participants: many(conversationParticipants),
+    messages: many(messages),
+  }),
+);
+
+export const conversationParticipantsRelations = relations(
+  conversationParticipants,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [conversationParticipants.organizationId],
+      references: [organizations.id],
+    }),
+    conversation: one(conversations, {
+      fields: [conversationParticipants.conversationId],
+      references: [conversations.id],
+    }),
+  }),
+);
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [messages.organizationId],
+    references: [organizations.id],
+  }),
+  conversation: one(conversations, {
+    fields: [messages.conversationId],
+    references: [conversations.id],
+  }),
+}));

@@ -160,6 +160,11 @@ export function ClientDetailClient({ initialClient }: ClientDetailClientProps) {
           {client.firstName} {client.lastName}
         </h1>
         <p className="text-body-md text-muted mt-2">{client.email}</p>
+        <div className="mt-4">
+          <Button asChild variant="secondary">
+            <Link href={`/coach/messages?clientId=${client.id}`}>Message</Link>
+          </Button>
+        </div>
       </div>
 
       <ClientActiveProgramCard clientId={client.id} />
