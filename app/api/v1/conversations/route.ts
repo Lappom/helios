@@ -1,15 +1,17 @@
 import { withApiHandler, jsonOk } from "@/lib/api/handler";
 import { parsePagination, withTotalCountHeaders } from "@/lib/api/pagination";
-import { getClientIdForUser, requireClient } from "@/lib/api/require-client";
+import { requireClient } from "@/lib/api/require-client";
 import { requireCoachRead, requireCoachWrite } from "@/lib/api/require-coach";
-import { getOrgContext } from "@/lib/auth/org-context";
+import { hasFeature } from "@/lib/billing/access";
+import { problem } from "@/lib/api/response";
 import {
+  createGroupConversation,
   findOrCreateDirectConversation,
-  getClientConversation,
+  listConversationsForClient,
   listConversationsForCoach,
 } from "@/lib/messaging/service";
 import { parseJsonBody } from "@/lib/validators/clients";
-import { createDirectConversationSchema } from "@/lib/validators/messaging";
+import { createConversationSchema } from "@/lib/validators/messaging";
 
 export const GET = withApiHandler({ requireOrg: true }, async ({ request }) => {
   const searchParams = new URL(request.url).searchParams;
@@ -18,16 +20,16 @@ export const GET = withApiHandler({ requireOrg: true }, async ({ request }) => {
 
   if (mine) {
     const client = await requireClient();
-    const conversation = await getClientConversation(
+    const items = await listConversationsForClient(
       client.organizationId,
       client.clientId,
       client.clerkUserId,
     );
 
     return jsonOk({
-      items: conversation ? [conversation] : [],
+      items,
       page: 1,
-      limit: 1,
+      limit: items.length,
     });
   }
 
@@ -46,7 +48,28 @@ export const GET = withApiHandler({ requireOrg: true }, async ({ request }) => {
 
 export const POST = withApiHandler({ requireOrg: true }, async ({ request }) => {
   const org = await requireCoachWrite();
-  const body = await parseJsonBody(createDirectConversationSchema, request);
+  const body = await parseJsonBody(createConversationSchema, request);
+
+  if (body.type === "group") {
+    const allowed = await hasFeature("group_messaging");
+    if (!allowed) {
+      throw problem({
+        type: "forbidden",
+        title: "Feature not available",
+        status: 403,
+        detail: "Feature 'group_messaging' is not available on your plan.",
+      });
+    }
+
+    const conversation = await createGroupConversation(
+      org.organizationId,
+      org.clerkUserId,
+      body,
+    );
+
+    return jsonOk(conversation, { status: 201 });
+  }
+
   const conversation = await findOrCreateDirectConversation(
     org.organizationId,
     body.clientId,

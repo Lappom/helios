@@ -11,7 +11,8 @@ export function getConversationIdFromPath(request: Request): string {
     next === "messages" ||
     next === "read" ||
     next === "upload" ||
-    next === "media"
+    next === "media" ||
+    next === "participants"
   ) {
     return "";
   }

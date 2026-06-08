@@ -127,6 +127,13 @@
       "when": 1780884411268,
       "tag": "0017_illegal_wolf_cub",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1780906427634,
+      "tag": "0018_naive_photon",
+      "breakpoints": true
     }
   ]
 }

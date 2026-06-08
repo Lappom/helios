@@ -10,7 +10,7 @@ export default async function CoachMessagesPage() {
   const [conversationsResult, clients] = await Promise.all([
     listConversationsForCoach(org.organizationId, org.clerkUserId, {
       page: 1,
-      limit: 100,
+      limit: 200,
       offset: 0,
     }),
     listAllClientsForKanban(org.organizationId),

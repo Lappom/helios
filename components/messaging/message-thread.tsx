@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { CheckCheck } from "lucide-react";
 import type { ConversationListItem, MessageItem } from "@/lib/messaging/types";
 import { MessageBubble } from "@/components/messaging/message-bubble";
@@ -22,7 +22,23 @@ type MessageThreadProps = {
   showVoice?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
+  headerActions?: ReactNode;
 };
+
+function threadTitle(conversation: ConversationListItem): string {
+  if (conversation.type === "group") {
+    return conversation.name ?? "Groupe";
+  }
+  return conversation.clientName ?? "Conversation";
+}
+
+function threadSubtitle(conversation: ConversationListItem): string {
+  if (conversation.type === "group") {
+    const count = conversation.participantCount ?? 0;
+    return `${count} participant${count > 1 ? "s" : ""}`;
+  }
+  return conversation.clientEmail ?? "";
+}
 
 export function MessageThread({
   conversation,
@@ -39,8 +55,10 @@ export function MessageThread({
   showVoice = true,
   emptyTitle = "Sélectionnez une conversation",
   emptyDescription = "Choisissez un client dans la liste pour afficher le fil.",
+  headerActions,
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isGroup = conversation?.type === "group";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,35 +75,47 @@ export function MessageThread({
 
   const lastMessageAt = messages.at(-1)?.createdAt ?? null;
   const isRead =
+    !isGroup &&
     peerReadAt &&
     lastMessageAt &&
     Date.parse(peerReadAt) >= Date.parse(lastMessageAt);
 
   return (
     <div className="bg-surface-card flex min-h-0 flex-1 flex-col">
-      <div className="border-hairline flex items-center justify-between border-b px-5 py-4">
-        <div>
-          <h2 className="text-title-sm text-on-dark font-semibold">
-            {conversation.clientName}
+      <div className="border-hairline flex items-center justify-between gap-3 border-b px-5 py-4">
+        <div className="min-w-0">
+          <h2 className="text-title-sm text-on-dark truncate font-semibold">
+            {threadTitle(conversation)}
           </h2>
-          <p className="text-body-sm text-muted">{conversation.clientEmail}</p>
+          <p className="text-body-sm text-muted truncate">
+            {threadSubtitle(conversation)}
+          </p>
         </div>
-        {isRead ? (
-          <div className="text-accent-emerald flex items-center gap-1 text-xs">
-            <CheckCheck className="size-4" />
-            Lu
-          </div>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {headerActions}
+          {isRead ? (
+            <div className="text-accent-emerald flex items-center gap-1 text-xs">
+              <CheckCheck className="size-4" />
+              Lu
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
         {messages.length === 0 ? (
           <p className="text-body-sm text-muted py-8 text-center">
-            Aucun message pour l&apos;instant. Lancez la conversation.
+            {isGroup
+              ? "Aucun message dans ce groupe. Envoyez une annonce à tous les participants."
+              : "Aucun message pour l'instant. Lancez la conversation."}
           </p>
         ) : (
           messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble
+              key={message.id}
+              message={message}
+              showSenderName={isGroup}
+            />
           ))
         )}
         {typingLabel ? <TypingIndicator label={typingLabel} /> : null}

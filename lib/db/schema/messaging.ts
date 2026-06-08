@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -25,9 +26,12 @@ export const conversations = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     type: conversationTypeEnum("type").notNull().default("direct"),
-    clientId: text("client_id")
-      .notNull()
-      .references(() => clients.id, { onDelete: "cascade" }),
+    clientId: text("client_id").references(() => clients.id, {
+      onDelete: "cascade",
+    }),
+    name: text("name"),
+    coachClerkUserId: text("coach_clerk_user_id"),
+    maxParticipants: integer("max_participants").notNull().default(50),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
     lastMessagePreview: text("last_message_preview"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -39,10 +43,9 @@ export const conversations = pgTable(
       .$onUpdate(() => new Date()),
   },
   (t) => [
-    uniqueIndex("conversations_org_client_direct_idx").on(
-      t.organizationId,
-      t.clientId,
-    ),
+    uniqueIndex("conversations_org_client_direct_idx")
+      .on(t.organizationId, t.clientId)
+      .where(sql`${t.type} = 'direct'`),
     index("conversations_org_last_message_idx").on(
       t.organizationId,
       t.lastMessageAt,

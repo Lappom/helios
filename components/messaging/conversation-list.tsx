@@ -1,5 +1,6 @@
 "use client";
 
+import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConversationListItem } from "@/lib/messaging/types";
 
@@ -44,6 +45,13 @@ function initials(name: string): string {
     .join("");
 }
 
+function conversationTitle(item: ConversationListItem): string {
+  if (item.type === "group") {
+    return item.name ?? "Groupe";
+  }
+  return item.clientName ?? "Conversation";
+}
+
 export function ConversationList({
   items,
   selectedId,
@@ -62,6 +70,8 @@ export function ConversationList({
       {items.map((item) => {
         const active = item.id === selectedId;
         const unread = item.unreadCount > 0;
+        const title = conversationTitle(item);
+        const isGroup = item.type === "group";
 
         return (
           <button
@@ -74,18 +84,31 @@ export function ConversationList({
               unread && !active && "bg-surface-soft/40",
             )}
           >
-            <div className="bg-surface-elevated text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
-              {initials(item.clientName)}
+            <div
+              className={cn(
+                "flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
+                isGroup
+                  ? "bg-surface-elevated text-primary"
+                  : "bg-surface-elevated text-primary",
+              )}
+            >
+              {isGroup ? (
+                <Users className="size-4" aria-hidden />
+              ) : (
+                initials(title)
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
                 <p
                   className={cn(
                     "truncate text-sm",
-                    unread ? "text-on-dark font-semibold" : "text-body-strong font-medium",
+                    unread
+                      ? "text-on-dark font-semibold"
+                      : "text-body-strong font-medium",
                   )}
                 >
-                  {item.clientName}
+                  {title}
                 </p>
                 <span className="text-muted shrink-0 text-xs">
                   {formatRelativeTime(item.lastMessageAt)}
@@ -93,7 +116,17 @@ export function ConversationList({
               </div>
               <div className="mt-1 flex items-center justify-between gap-2">
                 <p className="text-muted truncate text-sm">
-                  {item.lastMessagePreview ?? "Nouvelle conversation"}
+                  {isGroup ? (
+                    <span>
+                      Groupe · {item.participantCount ?? 0} participant
+                      {(item.participantCount ?? 0) > 1 ? "s" : ""}
+                      {item.lastMessagePreview
+                        ? ` · ${item.lastMessagePreview}`
+                        : ""}
+                    </span>
+                  ) : (
+                    (item.lastMessagePreview ?? "Nouvelle conversation")
+                  )}
                 </p>
                 {unread ? (
                   <span className="bg-primary text-on-primary flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold">

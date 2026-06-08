@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { ConversationList } from "@/components/messaging/conversation-list";
 import { MessageThread } from "@/components/messaging/message-thread";
 import { useConversationRealtime } from "@/components/messaging/use-conversation-realtime";
+import { CreateGroupDialog } from "@/components/coach/messaging/create-group-dialog";
+import { GroupMessagingGate } from "@/components/coach/messaging/group-messaging-gate";
+import { GroupParticipantsDialog } from "@/components/coach/messaging/group-participants-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -48,11 +51,15 @@ export function CoachMessagesClient({
   const [sending, setSending] = useState(false);
   const [typingLabel, setTypingLabel] = useState<string | null>(null);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [participantsDialogOpen, setParticipantsDialogOpen] = useState(false);
 
   const selectedConversation = useMemo(
     () => conversations.find((item) => item.id === selectedId) ?? null,
     [conversations, selectedId],
   );
+
+  const isGroupSelected = selectedConversation?.type === "group";
 
   useEffect(() => {
     const clientId = searchParams.get("clientId");
@@ -182,7 +189,13 @@ export function CoachMessagesClient({
           return;
         }
 
-        setTypingLabel(payload.isTyping ? "Le client écrit" : null);
+        setTypingLabel(
+          payload.isTyping
+            ? isGroupSelected
+              ? "Un participant écrit"
+              : "Le client écrit"
+            : null,
+        );
       },
     },
   );
@@ -262,21 +275,46 @@ export function CoachMessagesClient({
     }
   }
 
+  function handleGroupCreated(conversation: ConversationListItem) {
+    setConversations((current) => [conversation, ...current]);
+    setSelectedId(conversation.id);
+    router.replace(`/coach/messages?conversationId=${conversation.id}`);
+  }
+
+  function handleParticipantsChange(count: number) {
+    if (!selectedId) {
+      return;
+    }
+    setConversations((current) =>
+      current.map((item) =>
+        item.id === selectedId ? { ...item, participantCount: count } : item,
+      ),
+    );
+  }
+
   return (
     <div className="flex min-h-[calc(100vh-8rem)] flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-title-lg text-on-dark font-bold tracking-tight">
             Messages
           </h1>
           <p className="text-body-md text-muted mt-2">
-            Conversations directes avec vos clients.
+            Conversations directes et groupes avec vos clients.
           </p>
         </div>
-        <Button type="button" onClick={() => setNewDialogOpen(true)}>
-          <Plus className="size-4" />
-          Nouvelle conversation
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => setNewDialogOpen(true)}>
+            <Plus className="size-4" />
+            Nouvelle conversation
+          </Button>
+          <GroupMessagingGate>
+            <Button type="button" onClick={() => setGroupDialogOpen(true)}>
+              <Users className="size-4" />
+              Nouveau groupe
+            </Button>
+          </GroupMessagingGate>
+        </div>
       </div>
 
       <div className="border-hairline flex min-h-[560px] flex-1 overflow-hidden rounded-lg border">
@@ -307,6 +345,21 @@ export function CoachMessagesClient({
           typingLabel={typingLabel}
           peerReadAt={selectedConversation?.clientLastReadAt}
           showVoice
+          headerActions={
+            isGroupSelected ? (
+              <GroupMessagingGate>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setParticipantsDialogOpen(true)}
+                >
+                  <Users className="size-4" />
+                  Participants
+                </Button>
+              </GroupMessagingGate>
+            ) : null
+          }
         />
       </div>
 
@@ -334,6 +387,22 @@ export function CoachMessagesClient({
           </div>
         </DialogContent>
       </Dialog>
+
+      <CreateGroupDialog
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        clients={clients}
+        onCreated={handleGroupCreated}
+      />
+
+      <GroupParticipantsDialog
+        open={participantsDialogOpen}
+        onOpenChange={setParticipantsDialogOpen}
+        conversationId={selectedId}
+        groupName={selectedConversation?.name ?? "Groupe"}
+        clients={clients}
+        onParticipantsChange={handleParticipantsChange}
+      />
     </div>
   );
 }

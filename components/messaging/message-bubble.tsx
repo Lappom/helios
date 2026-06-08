@@ -7,9 +7,13 @@ import { MediaAttachment } from "@/components/messaging/media-attachment";
 
 type MessageBubbleProps = {
   message: MessageItem;
+  showSenderName?: boolean;
 };
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  showSenderName = false,
+}: MessageBubbleProps) {
   const isDeleted = Boolean(message.deletedAt);
 
   return (
@@ -28,6 +32,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           isDeleted && "opacity-60 italic",
         )}
       >
+        {showSenderName && !message.isOwn && message.senderDisplayName ? (
+          <p className="text-primary mb-1 text-xs font-semibold">
+            {message.senderDisplayName}
+          </p>
+        ) : null}
         {isDeleted ? (
           <p>Message supprimé</p>
         ) : message.type === "text" ? (

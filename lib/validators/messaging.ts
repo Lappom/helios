@@ -12,6 +12,34 @@ export const createDirectConversationSchema = z.object({
   clientId: z.string().min(1),
 });
 
+export const createGroupConversationSchema = z.object({
+  type: z.literal("group"),
+  name: z.string().trim().min(1).max(100),
+  clientIds: z
+    .array(z.string().min(1))
+    .min(1, "At least one client is required.")
+    .max(49, "A group can have at most 49 clients (50 including the coach)."),
+});
+
+export const createConversationSchema = z.union([
+  z
+    .object({
+      type: z.literal("direct").optional(),
+      clientId: z.string().min(1),
+    })
+    .transform((data) => ({
+      type: "direct" as const,
+      clientId: data.clientId,
+    })),
+  createGroupConversationSchema,
+]);
+
+export const addGroupParticipantsSchema = z.object({
+  clientIds: z
+    .array(z.string().min(1))
+    .min(1, "At least one client is required."),
+});
+
 export const sendMessageSchema = z
   .object({
     type: z.enum(MESSAGE_TYPES),
@@ -63,6 +91,13 @@ export function parseListMessagesQuery(
 
 export type CreateDirectConversationInput = z.infer<
   typeof createDirectConversationSchema
+>;
+export type CreateGroupConversationInput = z.infer<
+  typeof createGroupConversationSchema
+>;
+export type CreateConversationInput = z.infer<typeof createConversationSchema>;
+export type AddGroupParticipantsInput = z.infer<
+  typeof addGroupParticipantsSchema
 >;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type MarkReadInput = z.infer<typeof markReadSchema>;

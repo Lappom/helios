@@ -1,7 +1,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { clients, programs, teamMembers } from "@/lib/db/schema";
+import {
+  clients,
+  conversationParticipants,
+  programs,
+  teamMembers,
+} from "@/lib/db/schema";
 import type {
   HeliosEventName,
   HeliosEventPayload,
@@ -159,6 +164,69 @@ export async function handleHeliosNotificationEvent<
     }
     case "message.new": {
       const messagePayload = payload as HeliosEventPayload["message.new"];
+      const idempotencyKey = `message.new:${messagePayload.messageId}`;
+
+      if (messagePayload.conversationType === "group") {
+        const participants = await db.query.conversationParticipants.findMany({
+          where: and(
+            eq(
+              conversationParticipants.organizationId,
+              messagePayload.organizationId,
+            ),
+            eq(
+              conversationParticipants.conversationId,
+              messagePayload.conversationId,
+            ),
+            eq(conversationParticipants.role, "client"),
+          ),
+          columns: { clerkUserId: true },
+        });
+
+        const recipientClerkIds = participants
+          .map((participant) => participant.clerkUserId)
+          .filter((id) => id !== messagePayload.senderClerkUserId);
+
+        if (recipientClerkIds.length === 0) {
+          return;
+        }
+
+        const recipientClients = await db.query.clients.findMany({
+          where: and(
+            eq(clients.organizationId, messagePayload.organizationId),
+            inArray(clients.clerkUserId, recipientClerkIds),
+          ),
+          columns: {
+            id: true,
+            email: true,
+            clerkUserId: true,
+            firstName: true,
+            lastName: true,
+          },
+        });
+
+        if (recipientClients.length === 0) {
+          return;
+        }
+
+        await dispatchEventNotification(
+          messagePayload.organizationId,
+          "message_new",
+          recipientClients.map((client) => ({
+            clientId: client.id,
+            email: client.email,
+          })),
+          {
+            url: `/client/messages?conversationId=${messagePayload.conversationId}`,
+          },
+          idempotencyKey,
+        );
+        return;
+      }
+
+      if (!messagePayload.clientId) {
+        return;
+      }
+
       const client = await db.query.clients.findFirst({
         where: and(
           eq(clients.organizationId, messagePayload.organizationId),
@@ -177,7 +245,6 @@ export async function handleHeliosNotificationEvent<
         return;
       }
 
-      const idempotencyKey = `message.new:${messagePayload.messageId}`;
       const senderIsClient =
         client.clerkUserId !== null &&
         client.clerkUserId === messagePayload.senderClerkUserId;

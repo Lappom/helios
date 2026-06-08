@@ -1,9 +1,12 @@
 import type {
   ConversationListItem,
+  GroupParticipantItem,
   MessageItem,
 } from "@/lib/messaging/types";
 import type {
+  AddGroupParticipantsInput,
   CreateDirectConversationInput,
+  CreateGroupConversationInput,
   MarkReadInput,
   SendMessageInput,
 } from "@/lib/validators/messaging";
@@ -52,6 +55,52 @@ export async function createDirectConversation(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
+  return parseResponse(response);
+}
+
+export async function createGroupConversation(
+  input: CreateGroupConversationInput,
+): Promise<ConversationListItem> {
+  const response = await fetch("/api/v1/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseResponse(response);
+}
+
+export async function fetchGroupParticipants(
+  conversationId: string,
+): Promise<{ items: GroupParticipantItem[] }> {
+  const response = await fetch(
+    `/api/v1/conversations/${conversationId}/participants`,
+  );
+  return parseResponse(response);
+}
+
+export async function addGroupParticipants(
+  conversationId: string,
+  input: AddGroupParticipantsInput,
+): Promise<{ items: GroupParticipantItem[] }> {
+  const response = await fetch(
+    `/api/v1/conversations/${conversationId}/participants`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+  return parseResponse(response);
+}
+
+export async function removeGroupParticipant(
+  conversationId: string,
+  clientId: string,
+): Promise<{ items: GroupParticipantItem[] }> {
+  const response = await fetch(
+    `/api/v1/conversations/${conversationId}/participants/${clientId}`,
+    { method: "DELETE" },
+  );
   return parseResponse(response);
 }
 

@@ -31,7 +31,8 @@ export type ProgramPublishedPayload = {
 export type MessageNewPayload = {
   organizationId: string;
   conversationId: string;
-  clientId: string;
+  conversationType: "direct" | "group";
+  clientId?: string;
   senderClerkUserId: string;
   messageId: string;
 };
