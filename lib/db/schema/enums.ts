@@ -40,3 +40,17 @@ export const exerciseSourceEnum = pgEnum("exercise_source", [
   "system",
   "custom",
 ]);
+
+export const programStatusEnum = pgEnum("program_status", [
+  "draft",
+  "published",
+  "archived",
+]);
+
+export const blockTypeEnum = pgEnum("block_type", [
+  "single",
+  "superset",
+  "triset",
+  "circuit",
+  "amrap",
+]);
