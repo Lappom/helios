@@ -46,6 +46,12 @@ import {
   assessmentTemplates,
   assessments,
 } from "./assessments";
+import {
+  feedbackQuestions,
+  feedbackResponses,
+  sessionFeedback,
+  sessionFeedbackTemplates,
+} from "./session-feedback";
 
 export * from "./enums";
 export * from "./organization";
@@ -57,6 +63,7 @@ export * from "./programs";
 export * from "./recipes";
 export * from "./session-logs";
 export * from "./assessments";
+export * from "./session-feedback";
 
 export const organizationsRelations = relations(
   organizations,
@@ -76,6 +83,8 @@ export const organizationsRelations = relations(
     nutritionPlans: many(nutritionPlans),
     assessmentTemplates: many(assessmentTemplates),
     assessments: many(assessments),
+    sessionFeedbackTemplates: many(sessionFeedbackTemplates),
+    sessionFeedback: many(sessionFeedback),
   }),
 );
 
@@ -377,6 +386,10 @@ export const sessionLogsRelations = relations(sessionLogs, ({ one, many }) => ({
     references: [programSessions.id],
   }),
   setLogs: many(setLogs),
+  sessionFeedback: one(sessionFeedback, {
+    fields: [sessionLogs.id],
+    references: [sessionFeedback.sessionLogId],
+  }),
 }));
 
 export const setLogsRelations = relations(setLogs, ({ one }) => ({
@@ -629,6 +642,74 @@ export const assessmentResponsesRelations = relations(
     field: one(assessmentFields, {
       fields: [assessmentResponses.fieldId],
       references: [assessmentFields.id],
+    }),
+  }),
+);
+
+export const sessionFeedbackTemplatesRelations = relations(
+  sessionFeedbackTemplates,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [sessionFeedbackTemplates.organizationId],
+      references: [organizations.id],
+    }),
+    questions: many(feedbackQuestions),
+    sessionFeedback: many(sessionFeedback),
+  }),
+);
+
+export const feedbackQuestionsRelations = relations(
+  feedbackQuestions,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [feedbackQuestions.organizationId],
+      references: [organizations.id],
+    }),
+    template: one(sessionFeedbackTemplates, {
+      fields: [feedbackQuestions.templateId],
+      references: [sessionFeedbackTemplates.id],
+    }),
+    responses: many(feedbackResponses),
+  }),
+);
+
+export const sessionFeedbackRelations = relations(
+  sessionFeedback,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [sessionFeedback.organizationId],
+      references: [organizations.id],
+    }),
+    sessionLog: one(sessionLogs, {
+      fields: [sessionFeedback.sessionLogId],
+      references: [sessionLogs.id],
+    }),
+    client: one(clients, {
+      fields: [sessionFeedback.clientId],
+      references: [clients.id],
+    }),
+    template: one(sessionFeedbackTemplates, {
+      fields: [sessionFeedback.templateId],
+      references: [sessionFeedbackTemplates.id],
+    }),
+    responses: many(feedbackResponses),
+  }),
+);
+
+export const feedbackResponsesRelations = relations(
+  feedbackResponses,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [feedbackResponses.organizationId],
+      references: [organizations.id],
+    }),
+    sessionFeedback: one(sessionFeedback, {
+      fields: [feedbackResponses.sessionFeedbackId],
+      references: [sessionFeedback.id],
+    }),
+    question: one(feedbackQuestions, {
+      fields: [feedbackResponses.questionId],
+      references: [feedbackQuestions.id],
     }),
   }),
 );

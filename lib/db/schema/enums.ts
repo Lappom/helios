@@ -97,3 +97,9 @@ export const assessmentSourceEnum = pgEnum("assessment_source", [
   "manual",
   "cron",
 ]);
+
+export const feedbackQuestionTypeEnum = pgEnum("feedback_question_type", [
+  "scale",
+  "text",
+  "boolean",
+]);

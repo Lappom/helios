@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { SessionFeedbackForm } from "@/components/client/session/session-feedback-form";
 import { SessionExerciseCard } from "@/components/client/session/session-exercise-card";
 import { SessionStatusBadge } from "@/components/client/session-status-badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ export function SessionExecutionClient({
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [recap, setRecap] = useState<SessionRecap | null>(null);
+  const [feedbackPhase, setFeedbackPhase] = useState<"form" | "done">("form");
+  const [feedbackSkipped, setFeedbackSkipped] = useState(false);
 
   const isActive = detail.sessionLog?.status === "in_progress";
   const isCompleted = detail.sessionLog?.status === "completed";
@@ -60,6 +63,8 @@ export function SessionExecutionClient({
       );
       setDetail(result.detail);
       setRecap(result.recap);
+      setFeedbackPhase("form");
+      setFeedbackSkipped(false);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -72,6 +77,21 @@ export function SessionExecutionClient({
   }, [detail.programSessionId, detail.sessionLog]);
 
   if (recap) {
+    const sessionLogId = detail.sessionLog?.id;
+
+    if (feedbackPhase === "form" && sessionLogId && !feedbackSkipped) {
+      return (
+        <div className="mx-auto max-w-3xl">
+          <SessionFeedbackForm
+            sessionLogId={sessionLogId}
+            sessionName={detail.sessionName}
+            onSubmitted={() => setFeedbackPhase("done")}
+            onSkip={() => setFeedbackSkipped(true)}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-3xl space-y-8">
         <div className="space-y-2">
@@ -96,9 +116,15 @@ export function SessionExecutionClient({
           />
         </div>
 
-        <p className="text-body-sm text-muted">
-          Le feedback coach sera disponible prochainement.
-        </p>
+        {feedbackPhase === "done" ? (
+          <p className="text-body-sm text-primary font-medium">
+            Merci pour votre feedback — votre coach en sera informé.
+          </p>
+        ) : feedbackSkipped ? (
+          <p className="text-body-sm text-muted">
+            Vous pourrez partager votre ressenti lors d&apos;une prochaine séance.
+          </p>
+        ) : null}
 
         <Button asChild className="h-10 w-full sm:w-auto">
           <Link href="/client">Retour à l&apos;accueil</Link>

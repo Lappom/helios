@@ -71,6 +71,13 @@
       "when": 1780881741841,
       "tag": "0009_cold_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780882026338,
+      "tag": "0010_cultured_wendigo",
+      "breakpoints": true
     }
   ]
 }

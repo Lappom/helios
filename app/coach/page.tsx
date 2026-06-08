@@ -1,5 +1,6 @@
 import { DemoGridCard } from "@/components/design/demo-grid-card";
 import { TrialBanner } from "@/components/billing/trial-banner";
+import { FeedbackAlertsPanel } from "@/components/coach/session-feedback/feedback-alerts-panel";
 
 const kpiCards = [
   { title: "Clients actifs", metric: "—", metricLabel: "Ce mois" },
@@ -30,6 +31,7 @@ export default function CoachDashboardPage() {
           />
         ))}
       </div>
+      <FeedbackAlertsPanel />
     </div>
   );
 }
