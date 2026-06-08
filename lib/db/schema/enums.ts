@@ -69,3 +69,5 @@ export const sessionLogStatusEnum = pgEnum("session_log_status", [
 ]);
 
 export const foodSourceEnum = pgEnum("food_source", ["off", "usda", "custom"]);
+
+export const mealItemTypeEnum = pgEnum("meal_item_type", ["food", "recipe"]);

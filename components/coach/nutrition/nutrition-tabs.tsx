@@ -11,9 +11,17 @@ const tabs = [
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean): boolean {
+  if (href === "/coach/nutrition") {
+    return (
+      pathname === href ||
+      pathname.startsWith("/coach/nutrition/plans")
+    );
+  }
+
   if (exact) {
     return pathname === href;
   }
+
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

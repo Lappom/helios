@@ -1,5 +1,5 @@
-import { ClientPlaceholderPage } from "@/components/client/placeholder-page";
+import { ClientNutritionDashboard } from "@/components/client/nutrition/client-nutrition-dashboard";
 
 export default function ClientNutritionPage() {
-  return <ClientPlaceholderPage title="Nutrition" />;
+  return <ClientNutritionDashboard />;
 }

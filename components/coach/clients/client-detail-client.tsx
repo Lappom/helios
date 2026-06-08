@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ClientActiveNutritionCard } from "@/components/coach/clients/client-active-nutrition-card";
 import { ClientActiveProgramCard } from "@/components/coach/clients/client-active-program-card";
 import { ClientStatusBadge } from "@/components/coach/clients/client-status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -158,6 +159,7 @@ export function ClientDetailClient({ initialClient }: ClientDetailClientProps) {
       </div>
 
       <ClientActiveProgramCard clientId={client.id} />
+      <ClientActiveNutritionCard clientId={client.id} />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <aside className="space-y-6">
