@@ -19,6 +19,7 @@ type ExerciseFiltersSidebarProps = {
   filters: ExerciseFilters;
   categories: ExerciseCategoryItem[];
   onChange: (filters: ExerciseFilters) => void;
+  onSearchChange: (search: string) => void;
 };
 
 function FilterChip({
@@ -64,6 +65,7 @@ export function ExerciseFiltersSidebar({
   filters,
   categories,
   onChange,
+  onSearchChange,
 }: ExerciseFiltersSidebarProps) {
   function patch(partial: Partial<ExerciseFilters>) {
     onChange({ ...filters, ...partial });
@@ -79,7 +81,7 @@ export function ExerciseFiltersSidebar({
           <Search className="text-muted absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             value={filters.search}
-            onChange={(event) => patch({ search: event.target.value })}
+            onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Squat, dos, haltères…"
             className="border-hairline bg-surface-elevated text-on-dark pl-9"
           />

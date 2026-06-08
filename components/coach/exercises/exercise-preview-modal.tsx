@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { EyeOff, Pencil, Star } from "lucide-react";
 import { toast } from "sonner";
 import { ExerciseFormDialog } from "@/components/coach/exercises/exercise-form-dialog";
@@ -51,12 +51,8 @@ export function ExercisePreviewModal({
   onUpdated,
   onCategoriesChange,
 }: ExercisePreviewModalProps) {
-  const [alias, setAlias] = useState("");
+  const aliasRef = useRef<HTMLInputElement>(null);
   const [editOpen, setEditOpen] = useState(false);
-
-  useEffect(() => {
-    setAlias(exercise?.alias ?? "");
-  }, [exercise]);
 
   if (!exercise) return null;
 
@@ -80,7 +76,7 @@ export function ExercisePreviewModal({
     const response = await fetch(`/api/v1/exercises/${exercise!.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ alias }),
+      body: JSON.stringify({ alias: aliasRef.current?.value ?? "" }),
     });
     const payload = await response.json();
     if (!response.ok) {
@@ -192,10 +188,11 @@ export function ExercisePreviewModal({
                   </Button>
                 ) : (
                   <>
-                    <div className="flex min-w-[240px] flex-1 gap-2">
+                    <div key={exercise.id} className="flex min-w-[240px] flex-1 gap-2">
                       <Input
-                        value={alias}
-                        onChange={(event) => setAlias(event.target.value)}
+                        key={exercise.id}
+                        ref={aliasRef}
+                        defaultValue={exercise.alias ?? ""}
                         placeholder="Alias personnel"
                         className="border-hairline bg-surface-elevated text-on-dark"
                       />

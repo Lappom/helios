@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ExerciseFiltersSidebar } from "@/components/coach/exercises/exercise-filters-sidebar";
 import { ExerciseFormDialog } from "@/components/coach/exercises/exercise-form-dialog";
 import { ExerciseGrid } from "@/components/coach/exercises/exercise-grid";
@@ -60,31 +60,45 @@ export function ExercisesPageClient({
   );
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const queryKey = useMemo(
-    () => buildQuery(filters, page),
-    [filters, page],
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadExercises = useCallback(
+    async (nextFilters: ExerciseFilters, nextPage: number) => {
+      setLoading(true);
+      try {
+        const params = buildQuery(nextFilters, nextPage);
+        const response = await fetch(`/api/v1/exercises?${params}`);
+        const payload = await response.json();
+        if (!response.ok) return;
+        setItems(payload.items ?? []);
+        setTotal(
+          Number(
+            response.headers.get("X-Total-Count") ?? payload.items?.length ?? 0,
+          ),
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
   );
-
-  const fetchExercises = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/v1/exercises?${queryKey}`);
-      const payload = await response.json();
-      if (!response.ok) return;
-      setItems(payload.items ?? []);
-      setTotal(Number(response.headers.get("X-Total-Count") ?? payload.items?.length ?? 0));
-    } finally {
-      setLoading(false);
-    }
-  }, [queryKey]);
-
-  useEffect(() => {
-    void fetchExercises();
-  }, [fetchExercises]);
 
   function handleFiltersChange(next: ExerciseFilters) {
     setPage(1);
     setFilters(next);
+    void loadExercises(next, 1);
+  }
+
+  function handleSearchChange(search: string) {
+    const next = { ...filters, search };
+    setFilters(next);
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      setPage(1);
+      void loadExercises(next, 1);
+    }, 300);
   }
 
   function handleExerciseUpdated(exercise: ExerciseListItem) {
@@ -137,6 +151,7 @@ export function ExercisesPageClient({
           filters={filters}
           categories={categories}
           onChange={handleFiltersChange}
+          onSearchChange={handleSearchChange}
         />
 
         <div className="space-y-6">
@@ -156,7 +171,11 @@ export function ExercisesPageClient({
                 <button
                   type="button"
                   disabled={page <= 1 || loading}
-                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  onClick={() => {
+                    const nextPage = Math.max(1, page - 1);
+                    setPage(nextPage);
+                    void loadExercises(filters, nextPage);
+                  }}
                   className="border-hairline bg-surface-card text-on-dark rounded-md border px-3 py-2 text-sm disabled:opacity-40"
                 >
                   Précédent
@@ -164,7 +183,11 @@ export function ExercisesPageClient({
                 <button
                   type="button"
                   disabled={page >= totalPages || loading}
-                  onClick={() => setPage((prev) => prev + 1)}
+                  onClick={() => {
+                    const nextPage = page + 1;
+                    setPage(nextPage);
+                    void loadExercises(filters, nextPage);
+                  }}
                   className="border-hairline bg-surface-card text-on-dark rounded-md border px-3 py-2 text-sm disabled:opacity-40"
                 >
                   Suivant
