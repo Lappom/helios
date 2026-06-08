@@ -64,6 +64,13 @@
       "when": 1780881422447,
       "tag": "0008_lowly_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780881741841,
+      "tag": "0009_cold_chameleon",
+      "breakpoints": true
     }
   ]
 }

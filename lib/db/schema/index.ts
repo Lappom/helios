@@ -40,6 +40,12 @@ import {
 } from "./nutrition";
 import { recipeIngredients, recipes } from "./recipes";
 import { sessionLogs, setLogs } from "./session-logs";
+import {
+  assessmentFields,
+  assessmentResponses,
+  assessmentTemplates,
+  assessments,
+} from "./assessments";
 
 export * from "./enums";
 export * from "./organization";
@@ -50,6 +56,7 @@ export * from "./nutrition";
 export * from "./programs";
 export * from "./recipes";
 export * from "./session-logs";
+export * from "./assessments";
 
 export const organizationsRelations = relations(
   organizations,
@@ -67,6 +74,8 @@ export const organizationsRelations = relations(
     recipes: many(recipes),
     programs: many(programs),
     nutritionPlans: many(nutritionPlans),
+    assessmentTemplates: many(assessmentTemplates),
+    assessments: many(assessments),
   }),
 );
 
@@ -89,6 +98,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   nutritionAssignments: many(nutritionAssignments),
   sessionLogs: many(sessionLogs),
   mealLogs: many(mealLogs),
+  assessments: many(assessments),
 }));
 
 export const clientNotesRelations = relations(clientNotes, ({ one }) => ({
@@ -345,6 +355,7 @@ export const programAssignmentsRelations = relations(
     }),
     sessionOverrides: many(assignmentSessionOverrides),
     sessionLogs: many(sessionLogs),
+    assessments: many(assessments),
   }),
 );
 
@@ -553,3 +564,71 @@ export const mealLogItemsRelations = relations(mealLogItems, ({ one }) => ({
     references: [recipes.id],
   }),
 }));
+
+export const assessmentTemplatesRelations = relations(
+  assessmentTemplates,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [assessmentTemplates.organizationId],
+      references: [organizations.id],
+    }),
+    fields: many(assessmentFields),
+    assessments: many(assessments),
+  }),
+);
+
+export const assessmentFieldsRelations = relations(
+  assessmentFields,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [assessmentFields.organizationId],
+      references: [organizations.id],
+    }),
+    template: one(assessmentTemplates, {
+      fields: [assessmentFields.templateId],
+      references: [assessmentTemplates.id],
+    }),
+    responses: many(assessmentResponses),
+  }),
+);
+
+export const assessmentsRelations = relations(
+  assessments,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [assessments.organizationId],
+      references: [organizations.id],
+    }),
+    template: one(assessmentTemplates, {
+      fields: [assessments.templateId],
+      references: [assessmentTemplates.id],
+    }),
+    client: one(clients, {
+      fields: [assessments.clientId],
+      references: [clients.id],
+    }),
+    programAssignment: one(programAssignments, {
+      fields: [assessments.programAssignmentId],
+      references: [programAssignments.id],
+    }),
+    responses: many(assessmentResponses),
+  }),
+);
+
+export const assessmentResponsesRelations = relations(
+  assessmentResponses,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [assessmentResponses.organizationId],
+      references: [organizations.id],
+    }),
+    assessment: one(assessments, {
+      fields: [assessmentResponses.assessmentId],
+      references: [assessments.id],
+    }),
+    field: one(assessmentFields, {
+      fields: [assessmentResponses.fieldId],
+      references: [assessmentFields.id],
+    }),
+  }),
+);

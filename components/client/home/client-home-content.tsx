@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { SessionStatusBadge } from "@/components/client/session-status-badge";
+import { ClientPendingAssessmentBanner } from "@/components/client/assessment/client-pending-assessment-banner";
 import { Button } from "@/components/ui/button";
 import type { ClientSchedulePayload } from "@/lib/sessions/types";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,8 @@ export function ClientHomeContent({ schedule }: ClientHomeContentProps) {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
+      <ClientPendingAssessmentBanner />
+
       <header className="space-y-2">
         <p className="text-caption-uppercase text-primary tracking-widest uppercase">
           Aujourd&apos;hui

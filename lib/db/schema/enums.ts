@@ -71,3 +71,29 @@ export const sessionLogStatusEnum = pgEnum("session_log_status", [
 export const foodSourceEnum = pgEnum("food_source", ["off", "usda", "custom"]);
 
 export const mealItemTypeEnum = pgEnum("meal_item_type", ["food", "recipe"]);
+
+export const assessmentFieldTypeEnum = pgEnum("assessment_field_type", [
+  "text",
+  "number",
+  "select",
+  "photo",
+  "measurement",
+]);
+
+export const assessmentFrequencyEnum = pgEnum("assessment_frequency", [
+  "once",
+  "weekly",
+  "monthly",
+  "custom",
+]);
+
+export const assessmentStatusEnum = pgEnum("assessment_status", [
+  "pending",
+  "submitted",
+  "reviewed",
+]);
+
+export const assessmentSourceEnum = pgEnum("assessment_source", [
+  "manual",
+  "cron",
+]);
