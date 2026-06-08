@@ -21,7 +21,7 @@ import {
   driveFolders,
   driveShares,
 } from "@/lib/db/schema";
-import { emitHeliosEvent } from "@/lib/events/emit";
+import { emitHeliosEvent } from "@/lib/events/emit-event";
 import {
   assertDriveUploadAllowed,
   getDriveFileBlob,

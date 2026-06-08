@@ -20,7 +20,7 @@ import {
   videoCategories,
   videos,
 } from "@/lib/db/schema";
-import { emitHeliosEvent } from "@/lib/events/emit";
+import { emitHeliosEvent } from "@/lib/events/emit-event";
 import {
   assertVodVideoUploadAllowed,
   getVodThumbnailBlob,

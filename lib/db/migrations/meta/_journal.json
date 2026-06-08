@@ -155,6 +155,13 @@
       "when": 1780907850756,
       "tag": "0021_curved_cerise",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1780908914132,
+      "tag": "0022_hard_vampiro",
+      "breakpoints": true
     }
   ]
 }

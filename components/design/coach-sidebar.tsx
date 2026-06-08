@@ -18,6 +18,7 @@ import {
   Store,
   TrendingUp,
   Users,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -48,6 +49,7 @@ const navItems: NavItem[] = [
   { href: "/coach/drive", label: "Drive", icon: FolderOpen },
   { href: "/coach/videos", label: "Vidéothèque", icon: Play },
   { href: "/coach/notifications", label: "Notifications", icon: Bell },
+  { href: "/coach/automations", label: "Automatisations", icon: Zap },
   { href: "/coach/assessments", label: "Bilans", icon: ClipboardList },
   { href: "/coach/calendar", label: "Agenda", icon: Calendar },
   { href: "/coach/habits", label: "Habitudes", icon: Flame },

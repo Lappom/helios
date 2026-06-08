@@ -460,6 +460,109 @@ export async function listClientNotes(
   });
 }
 
+export async function addClientTag(
+  organizationId: string,
+  clientId: string,
+  tagName: string,
+  color?: string,
+): Promise<ClientListItem["tags"]> {
+  await getClientOrThrow(organizationId, clientId);
+  const name = tagName.trim();
+  if (!name) {
+    throw problem({
+      type: "validation-error",
+      title: "Invalid tag",
+      status: 400,
+      detail: "Tag name cannot be empty.",
+    });
+  }
+
+  const [existingTag] = await db
+    .select()
+    .from(clientTags)
+    .where(
+      and(
+        eq(clientTags.organizationId, organizationId),
+        eq(clientTags.name, name),
+      ),
+    )
+    .limit(1);
+
+  const tag =
+    existingTag ??
+    (
+      await db
+        .insert(clientTags)
+        .values({ organizationId, name, color: color ?? null })
+        .returning()
+    )[0]!;
+
+  const existingAssignment = await db.query.clientTagAssignments.findFirst({
+    where: and(
+      eq(clientTagAssignments.organizationId, organizationId),
+      eq(clientTagAssignments.clientId, clientId),
+      eq(clientTagAssignments.tagId, tag.id),
+    ),
+    columns: { id: true },
+  });
+
+  if (!existingAssignment) {
+    await db.insert(clientTagAssignments).values({
+      organizationId,
+      clientId,
+      tagId: tag.id,
+    });
+  }
+
+  const tagMap = await loadTagsForClients(organizationId, [clientId]);
+  return tagMap.get(clientId) ?? [];
+}
+
+export async function addClientTagById(
+  organizationId: string,
+  clientId: string,
+  tagId: string,
+): Promise<ClientListItem["tags"]> {
+  await getClientOrThrow(organizationId, clientId);
+
+  const tag = await db.query.clientTags.findFirst({
+    where: and(
+      eq(clientTags.organizationId, organizationId),
+      eq(clientTags.id, tagId),
+    ),
+    columns: { id: true },
+  });
+
+  if (!tag) {
+    throw problem({
+      type: "not-found",
+      title: "Tag not found",
+      status: 404,
+      detail: "The tag does not exist in this organization.",
+    });
+  }
+
+  const existingAssignment = await db.query.clientTagAssignments.findFirst({
+    where: and(
+      eq(clientTagAssignments.organizationId, organizationId),
+      eq(clientTagAssignments.clientId, clientId),
+      eq(clientTagAssignments.tagId, tagId),
+    ),
+    columns: { id: true },
+  });
+
+  if (!existingAssignment) {
+    await db.insert(clientTagAssignments).values({
+      organizationId,
+      clientId,
+      tagId,
+    });
+  }
+
+  const tagMap = await loadTagsForClients(organizationId, [clientId]);
+  return tagMap.get(clientId) ?? [];
+}
+
 export async function setClientTags(
   organizationId: string,
   clientId: string,

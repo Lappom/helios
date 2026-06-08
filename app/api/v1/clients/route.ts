@@ -2,6 +2,7 @@ import { withApiHandler, jsonOk } from "@/lib/api/handler";
 import { parsePagination, withTotalCountHeaders } from "@/lib/api/pagination";
 import { requireCoachRead, requireCoachWrite } from "@/lib/api/require-coach";
 import { createClient, listClients } from "@/lib/clients/service";
+import { emitHeliosEvent } from "@/lib/events/emit-event";
 import {
   clientStatusSchema,
   createClientSchema,
@@ -35,6 +36,12 @@ export const POST = withApiHandler({ requireOrg: true }, async ({ request }) => 
   const org = await requireCoachWrite();
   const body = await parseJsonBody(createClientSchema, request);
   const client = await createClient(org.organizationId, org.planTier, body);
+
+  emitHeliosEvent("client.created", {
+    organizationId: org.organizationId,
+    clientId: client.id,
+    source: "manual",
+  });
 
   return jsonOk(client, { status: 201 });
 });

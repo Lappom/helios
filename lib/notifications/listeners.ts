@@ -12,7 +12,7 @@ import type {
   HeliosEventName,
   HeliosEventPayload,
   PaymentReceivedPayload,
-} from "@/lib/events/emit";
+} from "@/lib/events/types";
 import { getOrganizationPlanTier } from "./cron";
 import { dispatchNotification } from "./dispatch";
 import { getActiveEventTemplate } from "./service";

@@ -17,7 +17,7 @@ import {
   messages,
   teamMembers,
 } from "@/lib/db/schema";
-import { emitHeliosEvent } from "@/lib/events/emit";
+import { emitHeliosEvent } from "@/lib/events/emit-event";
 import type {
   ConversationListItem,
   GroupParticipantItem,

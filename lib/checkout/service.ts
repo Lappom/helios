@@ -6,7 +6,7 @@ import { createClient, findClientByEmail } from "@/lib/clients/service";
 import { inviteClientToPortal } from "@/lib/clients/invite";
 import { db } from "@/lib/db";
 import { bookings, coachServices } from "@/lib/db/schema";
-import { emitHeliosEvent } from "@/lib/events/emit";
+import { emitHeliosEvent } from "@/lib/events/emit-event";
 import { assignProgram } from "@/lib/programs/assignments";
 import {
   incrementPromoRedemption,

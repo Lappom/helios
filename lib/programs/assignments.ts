@@ -247,7 +247,7 @@ export async function assignProgram(
       );
       activeClientIds.add(clientId);
 
-      const { emitHeliosEvent } = await import("@/lib/events/emit");
+      const { emitHeliosEvent } = await import("@/lib/events/emit-event");
       emitHeliosEvent("program.published", {
         organizationId,
         programId,

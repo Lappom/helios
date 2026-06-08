@@ -218,3 +218,38 @@ export const videoVisibilityEnum = pgEnum("video_visibility", [
   "all_clients",
   "selected",
 ]);
+
+export const automationTriggerTypeEnum = pgEnum("automation_trigger_type", [
+  "payment_received",
+  "client_created",
+  "form_completed",
+  "session_completed",
+  "assessment_submitted",
+  "schedule_cron",
+  "subscription_renewal_due",
+]);
+
+export const automationActionTypeEnum = pgEnum("automation_action_type", [
+  "assign_program",
+  "assign_nutrition",
+  "create_assessment",
+  "send_notification",
+  "send_message",
+  "add_tag",
+  "create_task",
+]);
+
+export const automationExecutionStatusEnum = pgEnum(
+  "automation_execution_status",
+  ["pending", "running", "completed", "failed", "skipped"],
+);
+
+export const automationActionLogStatusEnum = pgEnum(
+  "automation_action_log_status",
+  ["pending", "completed", "failed", "skipped"],
+);
+
+export const coachTaskStatusEnum = pgEnum("coach_task_status", [
+  "open",
+  "done",
+]);

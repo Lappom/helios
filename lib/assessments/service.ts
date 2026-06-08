@@ -773,7 +773,7 @@ export async function submitAssessment(
     })
     .where(eq(assessments.id, assessmentId));
 
-  const { emitHeliosEvent } = await import("@/lib/events/emit");
+  const { emitHeliosEvent } = await import("@/lib/events/emit-event");
   emitHeliosEvent("assessment.submitted", {
     organizationId,
     assessmentId,

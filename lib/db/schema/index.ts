@@ -73,6 +73,13 @@ import {
 } from "./messaging";
 import { driveFiles, driveFolders, driveShares } from "./drive";
 import { videoAccess, videoCategories, videos } from "./videos";
+import {
+  actionLogs,
+  automationActions,
+  automationExecutions,
+  automations,
+} from "./automations";
+import { coachTasks } from "./coach-tasks";
 
 export * from "./enums";
 export * from "./organization";
@@ -94,6 +101,8 @@ export * from "./notifications";
 export * from "./messaging";
 export * from "./drive";
 export * from "./videos";
+export * from "./automations";
+export * from "./coach-tasks";
 
 export const organizationsRelations = relations(
   organizations,
@@ -138,6 +147,11 @@ export const organizationsRelations = relations(
     videoCategories: many(videoCategories),
     videos: many(videos),
     videoAccess: many(videoAccess),
+    automations: many(automations),
+    automationActions: many(automationActions),
+    automationExecutions: many(automationExecutions),
+    actionLogs: many(actionLogs),
+    coachTasks: many(coachTasks),
   }),
 );
 
@@ -1085,5 +1099,77 @@ export const videoAccessRelations = relations(videoAccess, ({ one }) => ({
   client: one(clients, {
     fields: [videoAccess.clientId],
     references: [clients.id],
+  }),
+}));
+
+export const automationsRelations = relations(automations, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [automations.organizationId],
+    references: [organizations.id],
+  }),
+  actions: many(automationActions),
+  executions: many(automationExecutions),
+}));
+
+export const automationActionsRelations = relations(
+  automationActions,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [automationActions.organizationId],
+      references: [organizations.id],
+    }),
+    automation: one(automations, {
+      fields: [automationActions.automationId],
+      references: [automations.id],
+    }),
+  }),
+);
+
+export const automationExecutionsRelations = relations(
+  automationExecutions,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [automationExecutions.organizationId],
+      references: [organizations.id],
+    }),
+    automation: one(automations, {
+      fields: [automationExecutions.automationId],
+      references: [automations.id],
+    }),
+    client: one(clients, {
+      fields: [automationExecutions.clientId],
+      references: [clients.id],
+    }),
+    actionLogs: many(actionLogs),
+  }),
+);
+
+export const actionLogsRelations = relations(actionLogs, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [actionLogs.organizationId],
+    references: [organizations.id],
+  }),
+  execution: one(automationExecutions, {
+    fields: [actionLogs.executionId],
+    references: [automationExecutions.id],
+  }),
+  action: one(automationActions, {
+    fields: [actionLogs.actionId],
+    references: [automationActions.id],
+  }),
+}));
+
+export const coachTasksRelations = relations(coachTasks, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [coachTasks.organizationId],
+    references: [organizations.id],
+  }),
+  client: one(clients, {
+    fields: [coachTasks.clientId],
+    references: [clients.id],
+  }),
+  sourceAutomation: one(automations, {
+    fields: [coachTasks.sourceAutomationId],
+    references: [automations.id],
   }),
 }));
