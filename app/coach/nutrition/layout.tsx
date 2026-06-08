@@ -12,7 +12,7 @@ export default function CoachNutritionLayout({
           Nutrition
         </h1>
         <p className="text-body-md text-muted mt-2">
-          Bibliothèque d&apos;aliments et programmes alimentaires.
+          Bibliothèque d&apos;aliments, recettes et programmes alimentaires.
         </p>
       </div>
 

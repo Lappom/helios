@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/coach/nutrition/foods", label: "Aliments" },
+  { href: "/coach/nutrition/recipes", label: "Recettes" },
   { href: "/coach/nutrition", label: "Plans", exact: true },
 ];
 

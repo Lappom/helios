@@ -30,6 +30,7 @@ import {
   setPrescriptions,
 } from "./programs";
 import { foods } from "./foods";
+import { recipeIngredients, recipes } from "./recipes";
 import { sessionLogs, setLogs } from "./session-logs";
 
 export * from "./enums";
@@ -38,6 +39,7 @@ export * from "./clients";
 export * from "./exercises";
 export * from "./foods";
 export * from "./programs";
+export * from "./recipes";
 export * from "./session-logs";
 
 export const organizationsRelations = relations(
@@ -53,6 +55,7 @@ export const organizationsRelations = relations(
     exerciseCategories: many(exerciseCategories),
     exercises: many(exercises),
     foods: many(foods),
+    recipes: many(recipes),
     programs: many(programs),
   }),
 );
@@ -376,12 +379,39 @@ export const setLogsRelations = relations(setLogs, ({ one }) => ({
   }),
 }));
 
-export const foodsRelations = relations(foods, ({ one }) => ({
+export const foodsRelations = relations(foods, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [foods.organizationId],
     references: [organizations.id],
   }),
+  recipeIngredients: many(recipeIngredients),
 }));
+
+export const recipesRelations = relations(recipes, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [recipes.organizationId],
+    references: [organizations.id],
+  }),
+  ingredients: many(recipeIngredients),
+}));
+
+export const recipeIngredientsRelations = relations(
+  recipeIngredients,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [recipeIngredients.organizationId],
+      references: [organizations.id],
+    }),
+    recipe: one(recipes, {
+      fields: [recipeIngredients.recipeId],
+      references: [recipes.id],
+    }),
+    food: one(foods, {
+      fields: [recipeIngredients.foodId],
+      references: [foods.id],
+    }),
+  }),
+);
 
 export const assignmentSessionOverridesRelations = relations(
   assignmentSessionOverrides,
