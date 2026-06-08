@@ -56,6 +56,26 @@ export function CoachSettingsClient({
 
       <section className="space-y-4">
         <h2 className="text-title-md text-on-dark font-semibold">
+          Intégrations
+        </h2>
+        <div className="border-hairline bg-surface-card rounded-lg border p-6">
+          <p className="text-body-sm text-muted">
+            Clés API, webhooks sortants et connexion Zapier / Make (Business+).
+          </p>
+          <Button
+            asChild
+            variant="outline"
+            className="border-hairline-strong text-on-dark hover:bg-surface-elevated mt-4 font-semibold"
+          >
+            <Link href="/coach/settings/integrations">
+              Gérer les intégrations
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-title-md text-on-dark font-semibold">
           Profil public
         </h2>
         <div className="border-hairline bg-surface-card rounded-lg border p-6">

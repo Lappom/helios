@@ -12,6 +12,7 @@
     { "path": "/api/cron/revenue-snapshots", "schedule": "0 2 1 * *" },
     { "path": "/api/cron/automation-schedules", "schedule": "*/15 * * * *" },
     { "path": "/api/cron/subscription-renewals", "schedule": "0 7 * * *" },
-    { "path": "/api/cron/questionnaire-schedules", "schedule": "0 * * * 0,1" }
+    { "path": "/api/cron/questionnaire-schedules", "schedule": "0 * * * 0,1" },
+    { "path": "/api/cron/webhook-retries", "schedule": "*/5 * * * *" }
   ]
 }

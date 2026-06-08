@@ -29,6 +29,15 @@ export function emitHeliosEvent<T extends HeliosEventName>(
     }),
   );
 
+  void import("@/lib/integrations/dispatcher").then(({ handleWebhookEvent }) =>
+    handleWebhookEvent(name, payload).catch((error) => {
+      console.error(
+        `[helios:event] webhook listener failed for ${name}`,
+        error,
+      );
+    }),
+  );
+
   if (name === "client.created") {
     const clientCreatedPayload = payload as HeliosEventPayload["client.created"];
     void import("@/lib/questionnaires/listeners").then(

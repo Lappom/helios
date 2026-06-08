@@ -4,6 +4,7 @@ import type { subscriptionStatusEnum } from "@/lib/db/schema/enums";
 export type QuotaType =
   | "clients"
   | "ai"
+  | "api"
   | "notifications"
   | "exerciseVideo"
   | "vodVideo"
@@ -20,6 +21,7 @@ export const PLAN_LIMITS: Record<
   STARTER: {
     clients: 5,
     ai: 500,
+    api: 500,
     notifications: 200,
     exerciseVideo: 250 * 1024 * 1024,
     vodVideo: 250 * 1024 * 1024,
@@ -29,6 +31,7 @@ export const PLAN_LIMITS: Record<
   PRO: {
     clients: 50,
     ai: 5000,
+    api: 5000,
     notifications: 1000,
     exerciseVideo: 500 * 1024 * 1024,
     vodVideo: 500 * 1024 * 1024,
@@ -38,6 +41,7 @@ export const PLAN_LIMITS: Record<
   BUSINESS: {
     clients: 500,
     ai: 10000,
+    api: 10000,
     notifications: 5000,
     exerciseVideo: 1024 * 1024 * 1024,
     vodVideo: 1024 * 1024 * 1024,
@@ -47,6 +51,7 @@ export const PLAN_LIMITS: Record<
   TEAM: {
     clients: Number.POSITIVE_INFINITY,
     ai: Number.POSITIVE_INFINITY,
+    api: 10000,
     notifications: Number.POSITIVE_INFINITY,
     exerciseVideo: 2 * 1024 * 1024 * 1024,
     vodVideo: 2 * 1024 * 1024 * 1024,

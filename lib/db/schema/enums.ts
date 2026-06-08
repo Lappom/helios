@@ -298,3 +298,16 @@ export const coachTaskStatusEnum = pgEnum("coach_task_status", [
   "open",
   "done",
 ]);
+
+export const webhookEventEnum = pgEnum("webhook_event", [
+  "client.created",
+  "payment.received",
+  "session.completed",
+  "assessment.submitted",
+]);
+
+export const webhookDeliveryStatusEnum = pgEnum("webhook_delivery_status", [
+  "pending",
+  "success",
+  "failed",
+]);

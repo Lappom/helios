@@ -118,6 +118,7 @@ export * from "./automations";
 export * from "./coach-tasks";
 export * from "./questionnaires";
 export * from "./pathways";
+export * from "./integrations";
 
 export const organizationsRelations = relations(
   organizations,

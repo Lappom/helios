@@ -54,6 +54,7 @@ export const subscriptions = pgTable("subscriptions", {
   }).notNull(),
   activeClientCount: integer("active_client_count").notNull().default(0),
   aiCreditsUsed: integer("ai_credits_used").notNull().default(0),
+  apiCreditsUsed: integer("api_credits_used").notNull().default(0),
   notificationsSent: integer("notifications_sent").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

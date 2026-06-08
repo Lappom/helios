@@ -176,6 +176,13 @@
       "when": 1780910711803,
       "tag": "0024_sudden_morlocks",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1780911292741,
+      "tag": "0025_wooden_barracuda",
+      "breakpoints": true
     }
   ]
 }

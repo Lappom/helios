@@ -47,6 +47,7 @@ export async function checkQuota(quota: QuotaType): Promise<QuotaCheckResult> {
     columns: {
       activeClientCount: true,
       aiCreditsUsed: true,
+      apiCreditsUsed: true,
       notificationsSent: true,
     },
   });
@@ -54,6 +55,7 @@ export async function checkQuota(quota: QuotaType): Promise<QuotaCheckResult> {
   const usedMap: Record<QuotaType, number> = {
     clients: subscription?.activeClientCount ?? 0,
     ai: subscription?.aiCreditsUsed ?? 0,
+    api: subscription?.apiCreditsUsed ?? 0,
     notifications: subscription?.notificationsSent ?? 0,
     exerciseVideo: 0,
     vodVideo: 0,
