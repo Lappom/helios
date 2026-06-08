@@ -60,6 +60,7 @@ import {
   bookings,
 } from "./bookings";
 import { promoCodes } from "./promo-codes";
+import { payments, revenueSnapshots } from "./payments";
 
 export * from "./enums";
 export * from "./organization";
@@ -76,6 +77,7 @@ export * from "./habits";
 export * from "./coach-profiles";
 export * from "./bookings";
 export * from "./promo-codes";
+export * from "./payments";
 
 export const organizationsRelations = relations(
   organizations,
@@ -106,6 +108,8 @@ export const organizationsRelations = relations(
     blockedDates: many(blockedDates),
     bookings: many(bookings),
     promoCodes: many(promoCodes),
+    payments: many(payments),
+    revenueSnapshots: many(revenueSnapshots),
   }),
 );
 
@@ -849,3 +853,32 @@ export const promoCodesRelations = relations(promoCodes, ({ one, many }) => ({
   }),
   bookings: many(bookings),
 }));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [payments.organizationId],
+    references: [organizations.id],
+  }),
+  client: one(clients, {
+    fields: [payments.clientId],
+    references: [clients.id],
+  }),
+  service: one(coachServices, {
+    fields: [payments.serviceId],
+    references: [coachServices.id],
+  }),
+  booking: one(bookings, {
+    fields: [payments.bookingId],
+    references: [bookings.id],
+  }),
+}));
+
+export const revenueSnapshotsRelations = relations(
+  revenueSnapshots,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [revenueSnapshots.organizationId],
+      references: [organizations.id],
+    }),
+  }),
+);

@@ -139,3 +139,22 @@ export const promoDiscountTypeEnum = pgEnum("promo_discount_type", [
   "percent",
   "fixed",
 ]);
+
+export const paymentTypeEnum = pgEnum("payment_type", [
+  "subscription",
+  "one_time",
+  "external",
+]);
+
+export const paymentSourceEnum = pgEnum("payment_source", [
+  "manual",
+  "booking",
+  "import",
+]);
+
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pending",
+  "completed",
+  "refunded",
+  "failed",
+]);

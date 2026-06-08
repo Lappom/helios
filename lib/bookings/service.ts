@@ -20,6 +20,7 @@ import {
   coachProfiles,
   coachServices,
 } from "@/lib/db/schema";
+import { createPaymentFromBooking } from "@/lib/revenue/service";
 import type {
   CancelBookingInput,
   CreateBlockedDateInput,
@@ -648,6 +649,13 @@ export async function patchBookingStatus(
       status: 404,
       detail: "The booking does not exist.",
     });
+  }
+
+  if (
+    input.paymentStatus === "paid" ||
+    input.paymentStatus === "external"
+  ) {
+    await createPaymentFromBooking(organizationId, bookingId);
   }
 
   return getBookingById(organizationId, bookingId);

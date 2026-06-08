@@ -1,10 +1,22 @@
-export type HeliosEventName = "client.created" | "assessment.submitted";
+export type HeliosEventName =
+  | "client.created"
+  | "assessment.submitted"
+  | "payment.received";
 
 export type ClientCreatedPayload = {
   organizationId: string;
   clientId: string;
   source: "checkout" | "manual" | "import";
   bookingId?: string;
+};
+
+export type PaymentReceivedPayload = {
+  organizationId: string;
+  paymentId: string;
+  clientId?: string;
+  amountCents: number;
+  type: "subscription" | "one_time" | "external";
+  source: "manual" | "booking" | "import";
 };
 
 export type HeliosEventPayload = {
@@ -14,6 +26,7 @@ export type HeliosEventPayload = {
     assessmentId: string;
     clientId: string;
   };
+  "payment.received": PaymentReceivedPayload;
 };
 
 export function emitHeliosEvent<T extends HeliosEventName>(

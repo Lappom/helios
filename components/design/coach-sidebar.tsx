@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Settings,
   Store,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { href: "/coach/calendar", label: "Agenda", icon: Calendar },
   { href: "/coach/habits", label: "Habitudes", icon: Flame },
   { href: "/coach/boutique", label: "Boutique", icon: Store },
+  { href: "/coach/revenue", label: "Revenus", icon: TrendingUp },
   { href: "/coach/settings", label: "Settings", icon: Settings },
 ];
 
