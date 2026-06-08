@@ -8,6 +8,9 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import { getOrSet } from "@/lib/cache/get-or-set";
+import { cacheKeys, hashQuery } from "@/lib/cache/keys";
+import { invalidatePublicCoach } from "@/lib/cache/invalidate";
 import { getDb } from "@/lib/db";
 import {
   coachProfiles,
@@ -275,7 +278,12 @@ export async function patchProfile(
     )
     .returning();
 
-  return mapProfile(updated);
+  await invalidatePublicCoach(profile.slug);
+  if (input.slug && input.slug !== profile.slug) {
+    await invalidatePublicCoach(input.slug);
+  }
+
+  return mapProfile(updated!);
 }
 
 export async function updateProfilePhoto(
@@ -296,7 +304,8 @@ export async function updateProfilePhoto(
     )
     .returning();
 
-  return mapProfile(updated);
+  await invalidatePublicCoach(profile.slug);
+  return mapProfile(updated!);
 }
 
 export function suggestSlugFromDisplayName(displayName: string): string {
@@ -304,7 +313,9 @@ export function suggestSlugFromDisplayName(displayName: string): string {
   return base.length >= 3 ? base : "";
 }
 
-export async function listPublicCoaches(
+const PUBLIC_COACH_TTL_SECONDS = 60 * 60;
+
+async function fetchPublicCoaches(
   query: ListPublicCoachesQuery,
 ): Promise<{ items: PublicCoachListItem[]; total: number }> {
   const conditions = [
@@ -366,6 +377,17 @@ export async function listPublicCoaches(
   };
 }
 
+export async function listPublicCoaches(
+  query: ListPublicCoachesQuery,
+): Promise<{ items: PublicCoachListItem[]; total: number }> {
+  const queryHash = hashQuery(query as Record<string, unknown>);
+  return getOrSet(
+    cacheKeys.publicCoaches(queryHash),
+    PUBLIC_COACH_TTL_SECONDS,
+    () => fetchPublicCoaches(query),
+  );
+}
+
 export type PublicServiceCheckoutContext = {
   service: CoachServiceDto;
   coachName: string;
@@ -396,9 +418,7 @@ export async function getPublicServiceById(
   };
 }
 
-export async function getPublicCoachBySlug(
-  slug: string,
-): Promise<PublicCoachDto> {
+async function fetchPublicCoachBySlug(slug: string): Promise<PublicCoachDto> {
   const profile = await getDb().query.coachProfiles.findFirst({
     where: and(
       eq(coachProfiles.slug, slug),
@@ -424,6 +444,16 @@ export async function getPublicCoachBySlug(
     ...mapProfile(profile),
     services: (profile.services ?? []).map(mapService),
   };
+}
+
+export async function getPublicCoachBySlug(
+  slug: string,
+): Promise<PublicCoachDto> {
+  return getOrSet(
+    cacheKeys.publicCoach(slug),
+    PUBLIC_COACH_TTL_SECONDS,
+    () => fetchPublicCoachBySlug(slug),
+  );
 }
 
 async function getProfileForOrgOrThrow(

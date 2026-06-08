@@ -34,6 +34,8 @@ export const clients = pgTable(
   (t) => [
     uniqueIndex("clients_org_email_idx").on(t.organizationId, t.email),
     index("clients_org_status_idx").on(t.organizationId, t.status),
+    index("clients_org_clerk_user_idx").on(t.organizationId, t.clerkUserId),
+    index("clients_org_updated_idx").on(t.organizationId, t.updatedAt),
   ],
 );
 

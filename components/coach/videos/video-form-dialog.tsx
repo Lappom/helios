@@ -29,6 +29,7 @@ import type { VideoCategoryItem } from "@/lib/videos/types";
 import { VideoUploadField } from "./video-upload-field";
 
 type VideoFormDialogProps = {
+  organizationId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: VideoCategoryItem[];
@@ -43,6 +44,7 @@ type UploadPayload = {
 };
 
 export function VideoFormDialog({
+  organizationId,
   open,
   onOpenChange,
   categories,
@@ -148,6 +150,7 @@ export function VideoFormDialog({
         }
 
         await uploadVideoWithProgress(
+          organizationId,
           uploadPayload.file,
           {
             title: title.trim(),

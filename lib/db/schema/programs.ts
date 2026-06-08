@@ -45,6 +45,7 @@ export const programs = pgTable(
   (t) => [
     index("programs_org_status_idx").on(t.organizationId, t.status),
     index("programs_org_name_idx").on(t.organizationId, t.name),
+    index("programs_org_updated_idx").on(t.organizationId, t.updatedAt),
   ],
 );
 
@@ -347,6 +348,10 @@ export const programAssignments = pgTable(
       t.organizationId,
       t.clientId,
       t.status,
+    ),
+    index("program_assignments_org_created_idx").on(
+      t.organizationId,
+      t.createdAt,
     ),
   ],
 );

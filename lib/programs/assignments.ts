@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { invalidateSchedule } from "@/lib/cache/invalidate";
 import { getDb } from "@/lib/db";
 import {
   assignmentSessionOverrides,
@@ -425,6 +426,8 @@ export async function patchSessionSchedule(
       scheduledDate,
     });
   }
+
+  await invalidateSchedule(organizationId, assignment.clientId);
 
   return getAssignmentSchedule(organizationId, assignmentId);
 }

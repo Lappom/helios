@@ -15,4 +15,5 @@ export type OrgContext = {
   organizationId: string;
   role: OrgRole;
   planTier: PlanTier;
+  clientId?: string;
 };

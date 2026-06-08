@@ -45,6 +45,7 @@ import type {
 } from "@/lib/drive/types";
 
 type DrivePageClientProps = {
+  organizationId: string;
   planTier: PlanTier;
   initialTree: DriveFolderTreeNode[];
   initialContents: DriveFolderContents;
@@ -83,6 +84,7 @@ function findPathToFolder(
 }
 
 export function DrivePageClient({
+  organizationId,
   planTier,
   initialTree,
   initialContents,
@@ -138,7 +140,7 @@ export function DrivePageClient({
       ]);
 
       try {
-        await uploadDriveFileWithProgress(file, {
+        await uploadDriveFileWithProgress(organizationId, file, {
           folderId: currentFolderId,
           onProgress: (percent) => {
             setUploads((prev) =>

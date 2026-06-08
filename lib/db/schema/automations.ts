@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -52,6 +53,9 @@ export const automations = pgTable(
       t.isActive,
       t.triggerType,
     ),
+    index("automations_active_trigger_idx")
+      .on(t.isActive, t.triggerType)
+      .where(sql`${t.isActive} = true`),
   ],
 );
 

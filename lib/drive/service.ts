@@ -37,6 +37,8 @@ import type {
   DriveStorageQuota,
 } from "./types";
 import type { CreateFolderInput, ShareDriveInput } from "@/lib/validators/drive";
+import type { RegisterDriveFileUploadInput } from "@/lib/validators/blob-upload";
+import { parseDriveUploadPathname } from "@/lib/storage/client-upload";
 import { del } from "@vercel/blob";
 
 async function getFolderOrThrow(organizationId: string, folderId: string) {
@@ -356,6 +358,50 @@ export async function uploadDriveFile(
       mimeType: uploaded.mimeType,
       sizeBytes: file.size,
       blobPathname: uploaded.pathname,
+      uploadedByClerkUserId: coachClerkUserId,
+    })
+    .returning();
+
+  return mapFileItem(organizationId, row!);
+}
+
+export async function registerDriveFileFromClient(
+  organizationId: string,
+  coachClerkUserId: string,
+  planTier: PlanTier,
+  input: RegisterDriveFileUploadInput,
+): Promise<DriveFileItem> {
+  const parsed = parseDriveUploadPathname(input.pathname);
+  if (!parsed || parsed.organizationId !== organizationId) {
+    throw problem({
+      type: "forbidden",
+      title: "Invalid blob pathname",
+      status: 403,
+      detail: "Drive blob pathname does not belong to this organization.",
+    });
+  }
+
+  if (input.folderId) {
+    await getFolderOrThrow(organizationId, input.folderId);
+  }
+
+  const pseudoFile = {
+    type: input.mimeType,
+    size: input.sizeBytes,
+  } as File;
+  const storageUsed = await getDriveStorageUsed(organizationId);
+  assertDriveUploadAllowed(planTier, pseudoFile, storageUsed);
+
+  const [row] = await getDb()
+    .insert(driveFiles)
+    .values({
+      id: parsed.fileId,
+      organizationId,
+      folderId: input.folderId ?? null,
+      name: input.fileName,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      blobPathname: input.pathname,
       uploadedByClerkUserId: coachClerkUserId,
     })
     .returning();

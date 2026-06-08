@@ -4,25 +4,15 @@ import Link from "next/link";
 import { SessionStatusBadge } from "@/components/client/session-status-badge";
 import { ClientPendingAssessmentBanner } from "@/components/client/assessment/client-pending-assessment-banner";
 import { ClientPendingQuestionnaireBanner } from "@/components/client/questionnaires/client-pending-questionnaire-banner";
-import { ClientHabitsHomeWidget } from "@/components/client/habits/client-habits-home-widget";
-import { ReferralShareCard } from "@/components/client/referral/referral-share-card";
 import { Button } from "@/components/ui/button";
-import type { ClientHabitsSummary } from "@/lib/habits/types";
-import type { ClientReferralInfo } from "@/lib/referrals/types";
 import type { ClientSchedulePayload } from "@/lib/sessions/types";
 import { cn } from "@/lib/utils";
 
 type ClientHomeContentProps = {
   schedule: ClientSchedulePayload;
-  habitsSummary?: ClientHabitsSummary | null;
-  referral?: ClientReferralInfo | null;
 };
 
-export function ClientHomeContent({
-  schedule,
-  habitsSummary,
-  referral,
-}: ClientHomeContentProps) {
+export function ClientHomeContent({ schedule }: ClientHomeContentProps) {
   const todayKey = [
     new Date().getFullYear(),
     String(new Date().getMonth() + 1).padStart(2, "0"),
@@ -65,12 +55,6 @@ export function ClientHomeContent({
     <div className="mx-auto max-w-4xl space-y-8">
       <ClientPendingAssessmentBanner />
       <ClientPendingQuestionnaireBanner />
-
-      {habitsSummary ? (
-        <ClientHabitsHomeWidget summary={habitsSummary} />
-      ) : null}
-
-      {referral ? <ReferralShareCard referral={referral} /> : null}
 
       <header className="space-y-2">
         <p className="text-caption-uppercase text-primary tracking-widest uppercase">

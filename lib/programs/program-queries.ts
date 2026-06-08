@@ -1,4 +1,6 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
+import { getOrSet } from "@/lib/cache/get-or-set";
+import { cacheKeys } from "@/lib/cache/keys";
 import { getDb } from "@/lib/db";
 import {
   blockExerciseAlternatives,
@@ -115,7 +117,9 @@ export async function fetchProgramRaw(
   });
 }
 
-export async function getProgramTree(
+const PROGRAM_TREE_TTL_SECONDS = 30 * 60;
+
+async function fetchProgramTreeUncached(
   organizationId: string,
   programId: string,
 ): Promise<ProgramTree> {
@@ -131,4 +135,20 @@ export async function getProgramTree(
   }
 
   return mapProgramTree(raw);
+}
+
+export async function getProgramTree(
+  organizationId: string,
+  programId: string,
+  options?: { skipCache?: boolean },
+): Promise<ProgramTree> {
+  if (options?.skipCache) {
+    return fetchProgramTreeUncached(organizationId, programId);
+  }
+
+  return getOrSet(
+    cacheKeys.programTree(organizationId, programId),
+    PROGRAM_TREE_TTL_SECONDS,
+    () => fetchProgramTreeUncached(organizationId, programId),
+  );
 }

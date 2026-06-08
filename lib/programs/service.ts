@@ -23,6 +23,7 @@ import {
   programWeeks,
   setPrescriptions,
 } from "@/lib/db/schema";
+import { invalidateProgramTree } from "@/lib/cache/invalidate";
 import { problem } from "@/lib/api/response";
 import {
   assertProgramStructureEditable,
@@ -102,6 +103,14 @@ async function getNextBlockExerciseSortOrder(blockId: string) {
     .from(blockExercises)
     .where(eq(blockExercises.exerciseBlockId, blockId));
   return (row?.max ?? -1) + 1;
+}
+
+async function returnFreshProgramTree(
+  organizationId: string,
+  programId: string,
+): Promise<ProgramTree> {
+  await invalidateProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function listPrograms(
@@ -224,7 +233,7 @@ export async function createProgram(
     return program!.id;
   });
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function patchProgramMetadata(
@@ -250,7 +259,7 @@ export async function patchProgramMetadata(
       ),
     );
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function publishProgram(
@@ -278,7 +287,7 @@ export async function publishProgram(
       ),
     );
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function unpublishProgram(
@@ -306,7 +315,7 @@ export async function unpublishProgram(
       ),
     );
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function duplicateProgram(
@@ -484,7 +493,7 @@ export async function duplicateProgram(
     return newProgram!.id;
   });
 
-  return getProgramTree(organizationId, newProgramId);
+  return returnFreshProgramTree(organizationId, newProgramId);
 }
 
 async function reorderByIds(
@@ -549,7 +558,7 @@ export async function createWeek(
     label: input.label ?? `Semaine ${sortOrder + 1}`,
   });
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function patchWeek(
@@ -595,7 +604,7 @@ export async function patchWeek(
     await getDb().update(programWeeks).set(patch).where(eq(programWeeks.id, weekId));
   }
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function deleteWeek(
@@ -641,7 +650,7 @@ export async function deleteWeek(
     });
   }
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function reorderWeeks(
@@ -659,7 +668,7 @@ export async function reorderWeeks(
     ids,
   );
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function createSession(
@@ -697,7 +706,7 @@ export async function createSession(
     dayOfWeek: input.dayOfWeek ?? null,
   });
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function patchSession(
@@ -730,7 +739,7 @@ export async function patchSession(
     .set(input)
     .where(eq(programSessions.id, sessionId));
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function deleteSession(
@@ -773,7 +782,7 @@ export async function deleteSession(
 
   await getDb().delete(programSessions).where(eq(programSessions.id, sessionId));
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function reorderSessions(
@@ -792,7 +801,7 @@ export async function reorderSessions(
     ids,
   );
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 async function assertExerciseAccessible(
@@ -890,7 +899,7 @@ export async function createBlock(
     }
   });
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function patchBlock(
@@ -938,7 +947,7 @@ export async function patchBlock(
     .set(input)
     .where(eq(exerciseBlocks.id, blockId));
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function deleteBlock(
@@ -967,7 +976,7 @@ export async function deleteBlock(
 
   await getDb().delete(exerciseBlocks).where(eq(exerciseBlocks.id, blockId));
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function reorderBlocks(
@@ -986,7 +995,7 @@ export async function reorderBlocks(
     ids,
   );
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function addBlockExercise(
@@ -1049,7 +1058,7 @@ export async function addBlockExercise(
     });
   });
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function deleteBlockExercise(
@@ -1096,7 +1105,7 @@ export async function deleteBlockExercise(
       .where(eq(blockExercises.id, blockExerciseId));
   }
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function patchBlockExercise(
@@ -1179,7 +1188,7 @@ export async function patchBlockExercise(
     }
   });
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function reorderBlockExercises(
@@ -1198,7 +1207,7 @@ export async function reorderBlockExercises(
     ids,
   );
 
-  return getProgramTree(organizationId, programId);
+  return returnFreshProgramTree(organizationId, programId);
 }
 
 export async function listAllProgramsForCoach(organizationId: string) {

@@ -1,4 +1,7 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { getOrSet } from "@/lib/cache/get-or-set";
+import { cacheKeys } from "@/lib/cache/keys";
+import { invalidateNutrition } from "@/lib/cache/invalidate";
 import { getDb } from "@/lib/db";
 import {
   foods,
@@ -423,11 +426,15 @@ export async function logMeal(
     });
   }
 
+  await invalidateNutrition(organizationId, clientId);
+
   const [mapped] = await mapMealLogs(organizationId, [logRow]);
   return mapped!;
 }
 
-export async function getClientNutritionPayload(
+const NUTRITION_PAYLOAD_TTL_SECONDS = 5 * 60;
+
+async function fetchClientNutritionPayload(
   organizationId: string,
   clientId: string,
   date: string,
@@ -452,4 +459,16 @@ export async function getClientNutritionPayload(
     assignment,
     summary,
   };
+}
+
+export async function getClientNutritionPayload(
+  organizationId: string,
+  clientId: string,
+  date: string,
+): Promise<ClientNutritionPayload | null> {
+  return getOrSet(
+    cacheKeys.nutrition(organizationId, clientId, date),
+    NUTRITION_PAYLOAD_TTL_SECONDS,
+    () => fetchClientNutritionPayload(organizationId, clientId, date),
+  );
 }

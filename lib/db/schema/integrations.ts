@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -104,6 +105,9 @@ export const webhookDeliveries = pgTable(
       t.status,
     ),
     index("webhook_deliveries_retry_idx").on(t.nextRetryAt, t.status),
+    index("webhook_deliveries_pending_retry_idx")
+      .on(t.status, t.nextRetryAt)
+      .where(sql`${t.status} IN ('pending', 'failed')`),
   ],
 );
 

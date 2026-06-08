@@ -21,6 +21,7 @@ export default async function CoachDrivePage() {
 
   return (
     <DrivePageClient
+      organizationId={org.organizationId}
       planTier={org.planTier}
       initialTree={tree}
       initialContents={contents}

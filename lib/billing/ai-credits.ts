@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { invalidateQuota } from "@/lib/cache/invalidate";
 import { problem } from "@/lib/api/response";
 import type { PlanTier } from "@/lib/auth/types";
 import { getDb } from "@/lib/db";
@@ -52,6 +53,8 @@ export async function consumeAiCredits(
       updatedAt: new Date(),
     })
     .where(eq(subscriptions.organizationId, organizationId));
+
+  await invalidateQuota(organizationId, "ai");
 
   const newUsed = used + amount;
   const remaining =

@@ -1,3 +1,11 @@
+import { upload } from "@vercel/blob/client";
+import { createId } from "@/lib/db/id";
+import {
+  BLOB_CLIENT_UPLOAD_URL,
+  MULTIPART_UPLOAD_THRESHOLD_BYTES,
+  buildVodThumbnailPathname,
+  buildVodUploadPathname,
+} from "@/lib/storage/client-upload";
 import type {
   VideoAccessItem,
   VideoCategoryItem,
@@ -113,6 +121,7 @@ export async function createYoutubeVideo(
 }
 
 export async function uploadVideoWithProgress(
+  organizationId: string,
   file: File,
   metadata: {
     title: string;
@@ -125,52 +134,62 @@ export async function uploadVideoWithProgress(
   thumbnail: File | null,
   onProgress?: (percent: number) => void,
 ): Promise<VideoItem> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-    formData.append("file", file);
-    if (thumbnail) {
-      formData.append("thumbnail", thumbnail);
-    }
-    formData.append("title", metadata.title);
-    if (metadata.description) {
-      formData.append("description", metadata.description);
-    }
-    if (metadata.categoryId) {
-      formData.append("categoryId", metadata.categoryId);
-    }
-    formData.append("visibility", metadata.visibility);
-    if (metadata.clientIds?.length) {
-      formData.append("clientIds", JSON.stringify(metadata.clientIds));
-    }
-    if (metadata.durationSeconds != null) {
-      formData.append("durationSeconds", String(metadata.durationSeconds));
-    }
+  const videoId = createId();
+  const pathname = buildVodUploadPathname(organizationId, videoId, file.type);
 
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable && onProgress) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    });
-
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText) as VideoItem);
+  await upload(pathname, file, {
+    access: "private",
+    handleUploadUrl: BLOB_CLIENT_UPLOAD_URL,
+    clientPayload: JSON.stringify({
+      uploadType: "vod",
+      sizeBytes: file.size,
+      mimeType: file.type,
+    }),
+    multipart: file.size > MULTIPART_UPLOAD_THRESHOLD_BYTES,
+    onUploadProgress: (event) => {
+      if (!onProgress) {
         return;
       }
-
-      try {
-        const payload = JSON.parse(xhr.responseText) as { detail?: string };
-        reject(new Error(payload.detail ?? "Upload failed"));
-      } catch {
-        reject(new Error("Upload failed"));
-      }
-    });
-
-    xhr.addEventListener("error", () => reject(new Error("Network error")));
-    xhr.open("POST", "/api/v1/videos/upload");
-    xhr.send(formData);
+      const baseProgress = thumbnail ? 90 : 100;
+      onProgress(Math.round((event.percentage / 100) * baseProgress));
+    },
   });
+
+  let thumbnailPathname: string | null = null;
+  if (thumbnail) {
+    thumbnailPathname = buildVodThumbnailPathname(organizationId, videoId);
+    await upload(thumbnailPathname, thumbnail, {
+      access: "private",
+      handleUploadUrl: BLOB_CLIENT_UPLOAD_URL,
+      clientPayload: JSON.stringify({
+        uploadType: "vod_thumbnail",
+        sizeBytes: thumbnail.size,
+        mimeType: thumbnail.type,
+      }),
+      onUploadProgress: (event) => {
+        if (!onProgress) {
+          return;
+        }
+        onProgress(90 + Math.round((event.percentage / 100) * 10));
+      },
+    });
+  } else if (onProgress) {
+    onProgress(100);
+  }
+
+  const response = await fetch("/api/v1/videos/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      pathname,
+      thumbnailPathname,
+      mimeType: file.type,
+      sizeBytes: file.size,
+      metadata,
+    }),
+  });
+
+  return parseResponse(response);
 }
 
 export async function updateVideo(

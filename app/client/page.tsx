@@ -1,11 +1,12 @@
+import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { ClientHabitsSection } from "@/components/client/home/client-habits-section";
 import { ClientHomeContent } from "@/components/client/home/client-home-content";
+import { ClientReferralSection } from "@/components/client/home/client-referral-section";
+import { HomeSectionSkeleton } from "@/components/client/home/home-section-skeleton";
 import { getOrgContext } from "@/lib/auth/org-context";
 import { getClientIdForUser } from "@/lib/api/require-client";
-import { hasFeature } from "@/lib/billing/access";
-import { getClientHabitsSummary } from "@/lib/habits/service";
-import { getClientReferralInfo } from "@/lib/referrals/service";
 import { addDays, startOfWeekMonday } from "@/lib/programs/schedule";
 import { getEnrichedSchedule } from "@/lib/sessions/service";
 
@@ -20,14 +21,13 @@ export default async function ClientPortalPage() {
     redirect("/coach");
   }
 
-  const clientId = await getClientIdForUser(org.organizationId, userId);
+  const clientId =
+    org.clientId ?? (await getClientIdForUser(org.organizationId, userId));
   if (!clientId) {
     redirect("/sign-in");
   }
 
   let schedule;
-  let habitsSummary = null;
-  let referral = null;
   let hasActiveProgram = true;
 
   try {
@@ -39,17 +39,6 @@ export default async function ClientPortalPage() {
       start: weekStart,
       end: weekEnd,
     });
-
-    const [habitsEnabled, referralEnabled] = await Promise.all([
-      hasFeature("habits"),
-      hasFeature("referral_program"),
-    ]);
-    habitsSummary = habitsEnabled
-      ? await getClientHabitsSummary(org.organizationId, clientId)
-      : null;
-    referral = referralEnabled
-      ? await getClientReferralInfo(org.organizationId, clientId)
-      : null;
   } catch {
     hasActiveProgram = false;
   }
@@ -69,10 +58,22 @@ export default async function ClientPortalPage() {
   }
 
   return (
-    <ClientHomeContent
-      schedule={schedule!}
-      habitsSummary={habitsSummary}
-      referral={referral}
-    />
+    <div className="space-y-8">
+      <ClientHomeContent schedule={schedule!} />
+      <div className="mx-auto max-w-4xl space-y-6">
+        <Suspense fallback={<HomeSectionSkeleton />}>
+          <ClientHabitsSection
+            organizationId={org.organizationId}
+            clientId={clientId}
+          />
+        </Suspense>
+        <Suspense fallback={<HomeSectionSkeleton />}>
+          <ClientReferralSection
+            organizationId={org.organizationId}
+            clientId={clientId}
+          />
+        </Suspense>
+      </div>
+    </div>
   );
 }

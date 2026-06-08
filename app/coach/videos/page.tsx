@@ -16,6 +16,7 @@ export default async function CoachVideosPage() {
 
   return (
     <VideosPageClient
+      organizationId={org.organizationId}
       planTier={org.planTier}
       initialCategories={categories}
       initialVideos={videosResult.items}

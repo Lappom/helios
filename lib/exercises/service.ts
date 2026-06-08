@@ -8,6 +8,9 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import { getOrSet } from "@/lib/cache/get-or-set";
+import { cacheKeys, hashQuery } from "@/lib/cache/keys";
+import { invalidateExercises } from "@/lib/cache/invalidate";
 import { getDb } from "@/lib/db";
 import {
   exerciseAliases,
@@ -150,18 +153,27 @@ function buildListWhere(
   return and(...conditions);
 }
 
+const EXERCISE_LIST_TTL_SECONDS = 15 * 60;
+const EXERCISE_HIDDEN_TTL_SECONDS = 15 * 60;
+
 async function loadHiddenExerciseIds(
   organizationId: string,
 ): Promise<string[]> {
-  const rows = await getDb()
-    .select({ exerciseId: exerciseHidden.exerciseId })
-    .from(exerciseHidden)
-    .where(eq(exerciseHidden.organizationId, organizationId));
+  return getOrSet(
+    cacheKeys.exerciseHidden(organizationId),
+    EXERCISE_HIDDEN_TTL_SECONDS,
+    async () => {
+      const rows = await getDb()
+        .select({ exerciseId: exerciseHidden.exerciseId })
+        .from(exerciseHidden)
+        .where(eq(exerciseHidden.organizationId, organizationId));
 
-  return rows.map((row) => row.exerciseId);
+      return rows.map((row) => row.exerciseId);
+    },
+  );
 }
 
-export async function listExercises(
+async function fetchExerciseList(
   organizationId: string,
   clerkUserId: string,
   options: ListExercisesQuery,
@@ -229,6 +241,23 @@ export async function listExercises(
     items: rows.map(mapExerciseRow),
     total: Number(totalRow?.total ?? 0),
   };
+}
+
+export async function listExercises(
+  organizationId: string,
+  clerkUserId: string,
+  options: ListExercisesQuery,
+): Promise<{ items: ExerciseListItem[]; total: number }> {
+  const queryHash = hashQuery({
+    ...options,
+    clerkUserId,
+  });
+
+  return getOrSet(
+    cacheKeys.exerciseList(organizationId, queryHash),
+    EXERCISE_LIST_TTL_SECONDS,
+    () => fetchExerciseList(organizationId, clerkUserId, options),
+  );
 }
 
 export async function getExerciseById(
@@ -400,6 +429,7 @@ export async function createCustomExercise(
     })
     .returning({ id: exercises.id });
 
+  await invalidateExercises(organizationId);
   return getExerciseById(organizationId, clerkUserId, created!.id);
 }
 
@@ -454,6 +484,7 @@ export async function updateCustomExercise(
     })
     .where(eq(exercises.id, exerciseId));
 
+  await invalidateExercises(organizationId);
   return getExerciseById(organizationId, clerkUserId, exerciseId);
 }
 
@@ -481,6 +512,8 @@ export async function deleteCustomExercise(
       status: 404,
     });
   }
+
+  await invalidateExercises(organizationId);
 }
 
 export async function toggleFavorite(
@@ -570,6 +603,7 @@ export async function setExerciseHidden(
       .insert(exerciseHidden)
       .values({ organizationId, exerciseId })
       .onConflictDoNothing();
+    await invalidateExercises(organizationId);
     return { hidden: true };
   }
 
@@ -582,6 +616,7 @@ export async function setExerciseHidden(
       ),
     );
 
+  await invalidateExercises(organizationId);
   return { hidden: false };
 }
 

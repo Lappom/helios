@@ -1,8 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
+import { getOrSet } from "@/lib/cache/get-or-set";
+import { cacheKeys } from "@/lib/cache/keys";
 import { getDb } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import { getOrgContext } from "@/lib/auth/org-context";
+import type { OrgContext } from "@/lib/auth/types";
 import { problem } from "@/lib/api/response";
 import {
   getPlanLimit,
@@ -28,22 +31,15 @@ export type QuotaCheckResult = {
   allowed: boolean;
 };
 
-export async function checkQuota(quota: QuotaType): Promise<QuotaCheckResult> {
-  const orgContext = await getOrgContext();
+const QUOTA_TTL_SECONDS = 60;
 
-  if (!orgContext) {
-    throw problem({
-      type: "unauthorized",
-      title: "Authentication required",
-      status: 401,
-      detail: "Organization context is required to check quotas.",
-    });
-  }
-
-  const resolvedOrgId = orgContext.organizationId;
-
+async function fetchQuotaCheck(
+  organizationId: string,
+  planTier: OrgContext["planTier"],
+  quota: QuotaType,
+): Promise<QuotaCheckResult> {
   const subscription = await getDb().query.subscriptions.findFirst({
-    where: eq(subscriptions.organizationId, resolvedOrgId),
+    where: eq(subscriptions.organizationId, organizationId),
     columns: {
       activeClientCount: true,
       aiCreditsUsed: true,
@@ -63,7 +59,7 @@ export async function checkQuota(quota: QuotaType): Promise<QuotaCheckResult> {
     driveStorage: 0,
   };
 
-  const limit = getPlanLimit(orgContext.planTier, quota);
+  const limit = getPlanLimit(planTier, quota);
   const used = usedMap[quota];
   const remaining =
     limit === Number.POSITIVE_INFINITY
@@ -77,6 +73,30 @@ export async function checkQuota(quota: QuotaType): Promise<QuotaCheckResult> {
     remaining,
     allowed: used < limit,
   };
+}
+
+export async function checkQuota(quota: QuotaType): Promise<QuotaCheckResult> {
+  const orgContext = await getOrgContext();
+
+  if (!orgContext) {
+    throw problem({
+      type: "unauthorized",
+      title: "Authentication required",
+      status: 401,
+      detail: "Organization context is required to check quotas.",
+    });
+  }
+
+  return getOrSet(
+    cacheKeys.quota(orgContext.organizationId, quota),
+    QUOTA_TTL_SECONDS,
+    () =>
+      fetchQuotaCheck(
+        orgContext.organizationId,
+        orgContext.planTier,
+        quota,
+      ),
+  );
 }
 
 export async function requireQuota(quota: QuotaType): Promise<QuotaCheckResult> {

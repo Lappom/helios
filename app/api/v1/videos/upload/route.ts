@@ -1,7 +1,8 @@
 import { withApiHandler, jsonOk } from "@/lib/api/handler";
 import { requireCoachWrite } from "@/lib/api/require-coach";
 import { problem } from "@/lib/api/response";
-import { uploadVideo } from "@/lib/videos/service";
+import { registerVodUploadFromClient, uploadVideo } from "@/lib/videos/service";
+import { registerVodUploadSchema } from "@/lib/validators/blob-upload";
 import { createUploadVideoMetadataSchema } from "@/lib/validators/videos";
 
 function parseClientIds(value: FormDataEntryValue | null): string[] {
@@ -22,6 +23,19 @@ function parseClientIds(value: FormDataEntryValue | null): string[] {
 
 export const POST = withApiHandler({ requireOrg: true }, async ({ request }) => {
   const org = await requireCoachWrite();
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    const body = registerVodUploadSchema.parse(await request.json());
+    const video = await registerVodUploadFromClient(
+      org.organizationId,
+      org.clerkUserId,
+      org.planTier,
+      body,
+    );
+    return jsonOk(video, { status: 201 });
+  }
+
   const formData = await request.formData();
   const file = formData.get("file");
   const thumbnail = formData.get("thumbnail");

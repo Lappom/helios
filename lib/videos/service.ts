@@ -43,6 +43,8 @@ import type {
   VideoStreamInfo,
 } from "./types";
 import { getYoutubeThumbnailUrl, extractYoutubeId } from "./youtube";
+import type { RegisterVodUploadInput } from "@/lib/validators/blob-upload";
+import { parseVodUploadPathname } from "@/lib/storage/client-upload";
 import type {
   CreateCategoryInput,
   CreateUploadVideoMetadataInput,
@@ -542,6 +544,92 @@ export async function uploadVideo(
     videoId,
     coachClerkUserId,
     visibility: input.visibility,
+  });
+
+  const category = categoryId
+    ? await getDb().query.videoCategories.findFirst({
+        where: eq(videoCategories.id, categoryId),
+        columns: { name: true },
+      })
+    : null;
+
+  return mapVideoItem(created, category?.name ?? null);
+}
+
+export async function registerVodUploadFromClient(
+  organizationId: string,
+  coachClerkUserId: string,
+  planTier: PlanTier,
+  input: RegisterVodUploadInput,
+): Promise<VideoItem> {
+  const parsed = parseVodUploadPathname(input.pathname);
+  if (!parsed || parsed.organizationId !== organizationId || parsed.isThumbnail) {
+    throw problem({
+      type: "forbidden",
+      title: "Invalid blob pathname",
+      status: 403,
+      detail: "VOD blob pathname does not belong to this organization.",
+    });
+  }
+
+  const pseudoFile = {
+    type: input.mimeType,
+    size: input.sizeBytes,
+  } as File;
+  assertVodVideoUploadAllowed(planTier, pseudoFile);
+
+  const categoryId = await validateCategoryId(organizationId, input.metadata.categoryId);
+  const clientIds = input.metadata.clientIds ?? [];
+
+  if (input.metadata.visibility === "selected") {
+    await validateClientIds(organizationId, clientIds);
+  }
+
+  if (input.thumbnailPathname) {
+    const thumbParsed = parseVodUploadPathname(input.thumbnailPathname);
+    if (
+      !thumbParsed ||
+      thumbParsed.organizationId !== organizationId ||
+      !thumbParsed.isThumbnail ||
+      thumbParsed.videoId !== parsed.videoId
+    ) {
+      throw problem({
+        type: "validation-error",
+        title: "Invalid thumbnail pathname",
+        status: 400,
+        detail: "Thumbnail pathname does not match the uploaded video.",
+      });
+    }
+  }
+
+  const [created] = await getDb()
+    .insert(videos)
+    .values({
+      id: parsed.videoId,
+      organizationId,
+      coachClerkUserId,
+      categoryId,
+      title: input.metadata.title,
+      description: input.metadata.description ?? null,
+      source: "upload",
+      blobPathname: input.pathname,
+      thumbnailPathname: input.thumbnailPathname ?? null,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      durationSeconds: input.metadata.durationSeconds ?? null,
+      visibility: input.metadata.visibility,
+    })
+    .returning();
+
+  if (input.metadata.visibility === "selected") {
+    await replaceVideoAccess(organizationId, parsed.videoId, clientIds);
+  }
+
+  emitHeliosEvent("video.published", {
+    organizationId,
+    videoId: parsed.videoId,
+    coachClerkUserId,
+    visibility: input.metadata.visibility,
   });
 
   const category = categoryId

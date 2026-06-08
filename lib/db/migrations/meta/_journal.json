@@ -218,6 +218,13 @@
       "when": 1780915000000,
       "tag": "0030_enable_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1780916000000,
+      "tag": "0031_perf_indexes",
+      "breakpoints": true
     }
   ]
 }

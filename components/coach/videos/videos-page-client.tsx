@@ -18,6 +18,7 @@ import { VideoGrid } from "./video-grid";
 import { VideoPreviewDialog } from "./video-preview-dialog";
 
 type VideosPageClientProps = {
+  organizationId: string;
   planTier: PlanTier;
   initialCategories: VideoCategoryItem[];
   initialVideos: VideoItem[];
@@ -25,6 +26,7 @@ type VideosPageClientProps = {
 };
 
 export function VideosPageClient({
+  organizationId,
   planTier,
   initialCategories,
   initialVideos,
@@ -122,6 +124,7 @@ export function VideosPageClient({
       </div>
 
       <VideoFormDialog
+        organizationId={organizationId}
         open={formOpen}
         onOpenChange={setFormOpen}
         categories={categories}

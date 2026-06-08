@@ -1,3 +1,5 @@
+import { upload } from "@vercel/blob/client";
+import { createId } from "@/lib/db/id";
 import type {
   ClientDriveFileItem,
   DriveFileItem,
@@ -6,6 +8,11 @@ import type {
   DriveShareItem,
   DriveStorageQuota,
 } from "@/lib/drive/types";
+import {
+  BLOB_CLIENT_UPLOAD_URL,
+  MULTIPART_UPLOAD_THRESHOLD_BYTES,
+  buildDriveUploadPathname,
+} from "@/lib/storage/client-upload";
 import type {
   CreateFolderInput,
   ShareDriveInput,
@@ -66,42 +73,47 @@ export async function createDriveFolder(
 }
 
 export async function uploadDriveFileWithProgress(
+  organizationId: string,
   file: File,
   options?: {
     folderId?: string | null;
     onProgress?: (percent: number) => void;
   },
 ): Promise<DriveFileItem> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-    formData.append("file", file);
-    if (options?.folderId) {
-      formData.append("folderId", options.folderId);
-    }
-
-    xhr.open("POST", "/api/v1/drive/files");
-    xhr.responseType = "json";
-
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable || !options?.onProgress) {
-        return;
-      }
-      options.onProgress(Math.round((event.loaded / event.total) * 100));
-    };
-
-    xhr.onload = () => {
-      const payload = xhr.response as DriveFileItem & { detail?: string };
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(payload);
-        return;
-      }
-      reject(new Error(payload?.detail ?? "Upload failed"));
-    };
-
-    xhr.onerror = () => reject(new Error("Network error"));
-    xhr.send(formData);
+  const fileId = createId();
+  const pathname = buildDriveUploadPathname(organizationId, fileId, file.type);
+  const clientPayload = JSON.stringify({
+    uploadType: "drive",
+    sizeBytes: file.size,
+    mimeType: file.type,
   });
+
+  await upload(pathname, file, {
+    access: "private",
+    handleUploadUrl: BLOB_CLIENT_UPLOAD_URL,
+    clientPayload,
+    multipart: file.size > MULTIPART_UPLOAD_THRESHOLD_BYTES,
+    onUploadProgress: (event) => {
+      if (!options?.onProgress) {
+        return;
+      }
+      options.onProgress(Math.round(event.percentage));
+    },
+  });
+
+  const response = await fetch("/api/v1/drive/files", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      pathname,
+      fileName: file.name,
+      mimeType: file.type,
+      sizeBytes: file.size,
+      folderId: options?.folderId ?? null,
+    }),
+  });
+
+  return parseResponse(response);
 }
 
 export async function shareDriveFileApi(

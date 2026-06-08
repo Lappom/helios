@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import type { OrgContext } from "@/lib/auth/types";
 import { getOrgContext, requireOrg } from "@/lib/auth/org-context";
 import { getDb, runWithDbScope } from "@/lib/db";
@@ -26,29 +27,39 @@ export type ApiHandlerOptions = {
 
 type ApiHandler = (ctx: ApiHandlerContext) => Promise<Response> | Response;
 
+function shouldEmitServerTiming(): boolean {
+  const env = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
+  return env === "development" || env === "preview";
+}
+
 export function withApiHandler(
   options: ApiHandlerOptions,
   handler: ApiHandler,
 ) {
   return async function apiRouteHandler(request: Request): Promise<Response> {
     const instance = new URL(request.url).pathname;
+    const startedAt = performance.now();
 
     if (request.method === "OPTIONS") {
       return corsPreflightResponse(request);
     }
 
     try {
+      const orgForRateLimit =
+        options.rateLimit !== false ? await getOrgContext() : null;
+
       if (options.rateLimit !== false) {
-        const org = await getOrgContext();
         const rateKey = rateLimitKeyFromRequest(
           request,
-          org?.organizationId,
+          orgForRateLimit?.organizationId,
         );
         const rateResult = await enforceRateLimit(rateKey);
         assertRateLimitAllowed(rateResult);
       }
 
-      const org = options.requireOrg ? await requireOrg() : await getOrgContext();
+      const org = options.requireOrg
+        ? await requireOrg()
+        : (orgForRateLimit ?? (await getOrgContext()));
 
       if (options.requirePlan) {
         const allowed = await hasPlan(options.requirePlan);
@@ -74,14 +85,31 @@ export function withApiHandler(
         }
       }
 
-      const response = org
-        ? await runWithDbScope({ organizationId: org.organizationId }, async () =>
-            handler({ request, org }),
-          )
-        : await runWithDbScope({ bypass: true }, async () =>
-            handler({ request, org }),
-          );
+      const response = await Sentry.startSpan(
+        {
+          name: `api.route ${instance}`,
+          op: "http.server",
+          attributes: {
+            route: instance,
+            organizationId: org?.organizationId ?? "none",
+          },
+        },
+        async () =>
+          org
+            ? runWithDbScope({ organizationId: org.organizationId }, async () =>
+                handler({ request, org }),
+              )
+            : runWithDbScope({ bypass: true }, async () =>
+                handler({ request, org }),
+              ),
+      );
+
       const headers = applyCorsHeaders(request, response.headers);
+      if (shouldEmitServerTiming()) {
+        const durationMs = Math.round(performance.now() - startedAt);
+        headers.set("Server-Timing", `handler;dur=${durationMs}`);
+      }
+
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
@@ -91,6 +119,10 @@ export function withApiHandler(
       logger.captureException(error, { path: instance });
       const response = toProblemResponse(error, instance);
       const headers = applyCorsHeaders(request, response.headers);
+      if (shouldEmitServerTiming()) {
+        const durationMs = Math.round(performance.now() - startedAt);
+        headers.set("Server-Timing", `handler;dur=${durationMs}`);
+      }
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,

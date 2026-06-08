@@ -1,4 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getOrSet } from "@/lib/cache/get-or-set";
+import { cacheKeys } from "@/lib/cache/keys";
+import { invalidateSchedule } from "@/lib/cache/invalidate";
 import { getDb } from "@/lib/db";
 import {
   assignmentSessionOverrides,
@@ -207,7 +210,16 @@ function enrichSchedule(
   });
 }
 
-export async function getEnrichedSchedule(
+const SCHEDULE_TTL_SECONDS = 5 * 60;
+
+function scheduleRangeKey(range?: { start: Date; end: Date }): string {
+  if (!range) {
+    return "all";
+  }
+  return `${range.start.toISOString()}:${range.end.toISOString()}`;
+}
+
+async function fetchEnrichedSchedule(
   organizationId: string,
   clientId: string,
   range?: { start: Date; end: Date },
@@ -244,6 +256,19 @@ export async function getEnrichedSchedule(
     assignment,
     sessions: enrichSchedule(schedule, logs),
   };
+}
+
+export async function getEnrichedSchedule(
+  organizationId: string,
+  clientId: string,
+  range?: { start: Date; end: Date },
+): Promise<ClientSchedulePayload> {
+  const rangeKey = scheduleRangeKey(range);
+  return getOrSet(
+    cacheKeys.schedule(organizationId, clientId, rangeKey),
+    SCHEDULE_TTL_SECONDS,
+    () => fetchEnrichedSchedule(organizationId, clientId, range),
+  );
 }
 
 async function assertSessionBelongsToAssignment(
@@ -439,6 +464,8 @@ export async function startSession(
     scheduledDate,
     status: "in_progress",
   });
+
+  await invalidateSchedule(organizationId, clientId);
 
   return getSessionExecutionDetail(
     organizationId,
@@ -668,6 +695,8 @@ export async function completeSession(
     exercisesCompleted: completed,
     exercisesTotal: total,
   };
+
+  await invalidateSchedule(organizationId, clientId);
 
   const detail = await getSessionExecutionDetail(
     organizationId,
